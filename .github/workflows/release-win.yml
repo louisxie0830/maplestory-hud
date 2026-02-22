@@ -4,13 +4,19 @@ on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
 
 jobs:
-  release-windows:
+  build-windows:
     runs-on: windows-latest
-    timeout-minutes: 40
-    permissions:
-      contents: write
+    timeout-minutes: 45
 
     steps:
       - name: Checkout
@@ -41,12 +47,31 @@ jobs:
             dist/*.exe
             dist/*.yml
             dist/*.blockmap
+            dist/builder-debug.yml
+          if-no-files-found: error
+          retention-days: 7
+
+  publish-release:
+    needs: build-windows
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-installer
+          path: artifacts/windows
+
+      - name: List artifacts
+        run: find artifacts -type f | sort
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: |
-            dist/*.exe
-            dist/*.yml
-            dist/*.blockmap
           generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: |
+            artifacts/windows/*.exe
+            artifacts/windows/*.yml
+            artifacts/windows/*.blockmap

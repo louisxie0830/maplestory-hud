@@ -4,6 +4,15 @@ MapleStory HUD 是一個以 Electron + React + TypeScript 開發的桌面覆蓋�
 
 ## 版本更新
 
+### v0.1.11
+
+- CI/CD 升級（參考 `ms-assistant`）：
+  - `Release Windows` workflow 改為 `build-windows` + `publish-release` 雙 job。
+  - 先在 Windows 打包並上傳 artifact，再由 Ubuntu 發布 GitHub Release。
+  - 新增 release 併發控制與 artifact 檔案存在檢查（`if-no-files-found: error`）。
+- CI：
+  - 新增 concurrency 控制，避免同一 ref 重複跑 CI。
+
 ### v0.1.10
 
 - 發版一致性：
