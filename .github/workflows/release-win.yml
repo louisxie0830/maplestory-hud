@@ -28,7 +28,7 @@ jobs:
       - name: Validate GH_TOKEN
         shell: pwsh
         env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
         run: |
           if (-not $env:GH_TOKEN) { throw "Missing GH_TOKEN secret" }
 
@@ -38,7 +38,7 @@ jobs:
       - name: Build Windows installer
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
         run: npm run -s build:win:publish
 
       - name: Upload build artifacts
