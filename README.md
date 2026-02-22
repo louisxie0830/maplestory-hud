@@ -74,8 +74,9 @@ npm run build:win
 
 1. 推送到 `master` 後，前往 GitHub Actions 的 `CI` workflow。
 2. 等待 `windows-smoke` job 成功。
-3. 下載 artifact `windows-smoke-installer`（`.exe` 安裝檔）。
-4. 在 Windows 11/10 執行安裝檔，確認：
+3. 下載 artifact `windows-smoke-installer`（`win-unpacked`）。
+4. 在 job log 確認 `Run Windows executable smoke test` 有輸出 app 版本。
+5. 在 Windows 11/10 執行安裝檔（正式版用 `Release Windows` 的 `.exe`），確認：
    - 可正常開啟 HUD
    - 系統匣存在
    - F7/F8/F9/F10 可觸發

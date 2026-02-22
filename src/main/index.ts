@@ -21,6 +21,12 @@ if (process.platform === 'win32') {
 log.initialize()
 log.info('MapleStory HUD starting...')
 
+// CI/diagnostics switch: print app version and exit without opening windows
+if (process.argv.includes('--app-version')) {
+  console.log(app.getVersion())
+  app.exit(0)
+}
+
 // Global error handlers
 process.on('uncaughtException', (err) => {
   log.error('Uncaught exception:', err)
