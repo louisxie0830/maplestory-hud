@@ -41,7 +41,10 @@ export async function runOcrPipeline(
       presets.push(
         { ...basePreset, invert: false, thresholdValue: 160 },
         { ...basePreset, invert: true, thresholdValue: 140 },
-        { ...basePreset, invert: false, thresholdValue: 130 }
+        { ...basePreset, invert: false, thresholdValue: 130 },
+        { ...basePreset, invert: true, thresholdValue: 120 },
+        { ...basePreset, invert: false, thresholdValue: 180 },
+        { ...basePreset, invert: true, thresholdValue: 100, sharpen: false }
       )
     }
 

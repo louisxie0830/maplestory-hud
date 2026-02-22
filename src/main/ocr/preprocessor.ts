@@ -19,14 +19,14 @@ const PRESETS: Record<string, PreprocessOptions> = {
     targetWidth: 400,
     invert: true,
     threshold: true,
-    thresholdValue: 180,
+    thresholdValue: 160,
     sharpen: true
   },
   mp: {
     targetWidth: 400,
     invert: true,
     threshold: true,
-    thresholdValue: 180,
+    thresholdValue: 160,
     sharpen: true
   },
   exp: {

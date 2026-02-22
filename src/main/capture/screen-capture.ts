@@ -236,7 +236,7 @@ function findColorBox(
     }
   }
 
-  if (count < 40 || maxX <= minX || maxY <= minY) return null
+  if (count < 20 || maxX <= minX || maxY <= minY) return null
   return { minX, minY, maxX, maxY, count }
 }
 
@@ -246,17 +246,17 @@ function detectHudAnchorRegions(image: Electron.NativeImage): Partial<Record<'hp
 
   const redBox = findColorBox(
     image,
-    0.78,
-    (r, g, b) => r > 165 && (r - g) > 45 && (r - b) > 45,
-    0.20,
-    0.48
+    0.90,
+    (r, g, b) => r > 130 && (r - g) > 30 && (r - b) > 30,
+    0.15,
+    0.50
   )
   const blueBox = findColorBox(
     image,
-    0.78,
-    (r, g, b) => b > 150 && (b - r) > 40 && (b - g) > 20,
-    0.33,
-    0.62
+    0.90,
+    (r, g, b) => b > 120 && (b - r) > 25 && (b - g) > 10,
+    0.30,
+    0.60
   )
   const greenBox = findColorBox(
     image,
@@ -280,24 +280,13 @@ function detectHudAnchorRegions(image: Electron.NativeImage): Partial<Record<'hp
     )
     regions.hp = hpRegion
 
-    // If HP anchor is found, derive MP/EXP by known HUD relative offsets.
+    // If HP anchor is found, derive MP by horizontal offset (same row in TMS HUD).
     if (!regions.mp) {
       regions.mp = clampRegion(
         {
-          x: hpRegion.x + Math.round(width * 0.12),
+          x: hpRegion.x + Math.round(width * 0.13),
           y: hpRegion.y,
-          width: Math.round(width * 0.17),
-          height: hpRegion.height
-        },
-        image
-      )
-    }
-    if (!regions.exp) {
-      regions.exp = clampRegion(
-        {
-          x: hpRegion.x + Math.round(width * 0.245),
-          y: hpRegion.y,
-          width: Math.round(width * 0.19),
+          width: Math.round(width * 0.16),
           height: hpRegion.height
         },
         image
@@ -331,8 +320,9 @@ function detectHudAnchorRegions(image: Electron.NativeImage): Partial<Record<'hp
     )
   }
 
-  if (Date.now() - lastAnchorLogAt > 2000) {
+  if (Date.now() - lastAnchorLogAt > 5000) {
     lastAnchorLogAt = Date.now()
+    log.info(`Anchor detect: red=${redBox?.count ?? 0} blue=${blueBox?.count ?? 0} green=${greenBox?.count ?? 0}`)
     const debug = {
       hp: regions.hp ? `${regions.hp.x},${regions.hp.y},${regions.hp.width}x${regions.hp.height}` : '-',
       mp: regions.mp ? `${regions.mp.x},${regions.mp.y},${regions.mp.width}x${regions.mp.height}` : '-',
@@ -342,6 +332,34 @@ function detectHudAnchorRegions(image: Electron.NativeImage): Partial<Record<'hp
   }
 
   return regions
+}
+
+function getRatioFallback(width: number, height: number, regionId: string): CaptureRegion | null {
+  switch (regionId) {
+    case 'hp':
+      return {
+        x: Math.round(width * 0.24),
+        y: Math.round(height * 0.935),
+        width: Math.round(width * 0.15),
+        height: Math.round(height * 0.04)
+      }
+    case 'mp':
+      return {
+        x: Math.round(width * 0.37),
+        y: Math.round(height * 0.935),
+        width: Math.round(width * 0.16),
+        height: Math.round(height * 0.04)
+      }
+    case 'exp':
+      return {
+        x: 0,
+        y: Math.round(height * 0.98),
+        width: width,
+        height: Math.round(height * 0.012)
+      }
+    default:
+      return null
+  }
 }
 
 function getAutoAlignedRegion(
@@ -361,7 +379,7 @@ function getAutoAlignedRegion(
     }
   }
   const region = hudAnchorCache.regions[regionId as 'hp' | 'mp' | 'exp']
-  return region || fallback
+  return region || getRatioFallback(width, height, regionId) || fallback
 }
 
 /**
