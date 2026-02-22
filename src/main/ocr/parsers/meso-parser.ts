@@ -9,13 +9,13 @@ export interface MesoResult {
  * @returns 解析結果（包含金額），或 null
  */
 export function parseMeso(text: string): MesoResult | null {
-  const cleaned = text.replace(/\s+/g, '').replace(/,/g, '')
+  const matches = text.match(/\d[\d,]*/g)
+  if (!matches || matches.length === 0) return null
 
-  // Match digits only
-  const match = cleaned.match(/(\d+)/)
-  if (!match) return null
-
-  const amount = parseInt(match[1], 10)
+  // Choose the largest plausible number to avoid OCR picking short noisy fragments.
+  const amount = Math.max(
+    ...matches.map((m) => parseInt(m.replace(/,/g, ''), 10)).filter((n) => Number.isFinite(n))
+  )
 
   if (isNaN(amount)) return null
   if (amount < 0) return null

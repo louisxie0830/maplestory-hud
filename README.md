@@ -2,6 +2,21 @@
 
 MapleStory HUD 是一個以 Electron + React + TypeScript 開發的桌面覆蓋層（overlay）應用，提供楓之谷遊戲中的即時資訊顯示與 OCR 解析能力。
 
+## 版本更新
+
+### v0.1.8
+
+- OCR 強化：
+  - `EXP` 解析新增無 `%` 後備規則（OCR 漏符號時仍可讀取）。
+  - `Meso` 解析改為從多段數字中挑最大值，降低雜訊誤判。
+- QA：
+  - 新增 parser 單元測試（`EXP`、`Meso`）。
+- 互動分析：
+  - Setup / 控制列操作加入事件追蹤（本機 telemetry）。
+- 安全與發版流程：
+  - 維持 `tag` 才觸發 workflow。
+  - Release workflow 會自動建立 GitHub Release 並上傳資產。
+
 ## 產品目標（PM）
 
 - 以不干擾遊戲操作為前提，提供可讀且可調整的 HUD。

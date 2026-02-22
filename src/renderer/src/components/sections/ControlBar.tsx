@@ -13,8 +13,20 @@ export const ControlBar: React.FC = () => {
     const newIsLocked = await window.electronAPI?.toggleClickThrough()
     if (newIsLocked !== undefined) {
       setLocked(newIsLocked)
+      window.electronAPI.trackEvent('settings.opened', { action: 'toggle_lock', locked: newIsLocked })
     }
   }, [setLocked])
+
+  const handleToggleCapture = useCallback(async () => {
+    await toggleCapture()
+    const running = useSettingsStore.getState().isCaptureRunning
+    window.electronAPI.trackEvent('capture.toggled', { running, source: 'control_bar' })
+  }, [toggleCapture])
+
+  const handleOpenSettings = useCallback(() => {
+    openSettings()
+    window.electronAPI.trackEvent('settings.opened', { source: 'control_bar' })
+  }, [openSettings])
 
   return (
     <div className="hud-control">
@@ -26,11 +38,11 @@ export const ControlBar: React.FC = () => {
       </button>
       <button
         className={`hud-ctrl-btn ${isCaptureRunning ? 'active' : 'off'}`}
-        onClick={toggleCapture}
+        onClick={handleToggleCapture}
       >
         {isCaptureRunning ? '擷取中' : '已停止'}
       </button>
-      <button className="hud-ctrl-btn" onClick={() => openSettings()}>
+      <button className="hud-ctrl-btn" onClick={handleOpenSettings}>
         設定
       </button>
       <button className="hud-ctrl-btn" onClick={() => window.electronAPI?.openLogViewer()}>

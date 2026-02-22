@@ -11,8 +11,13 @@ export interface ExpResult {
 export function parseExp(text: string): ExpResult | null {
   const cleaned = text.replace(/\s+/g, '').replace(/,/g, '.')
 
-  // Match percentage pattern
-  const match = cleaned.match(/(\d+\.?\d*)\s*%/)
+  // Prefer explicit percentage first
+  let match = cleaned.match(/(\d+\.?\d*)%/)
+  // OCR may drop '%' on UI overlays; fallback to standalone decimal/integer token
+  if (!match) {
+    const decimal = cleaned.match(/(\d{1,3}\.\d{1,3})/)
+    match = decimal ?? cleaned.match(/(\d{1,3})/)
+  }
   if (!match) return null
 
   const percent = parseFloat(match[1])

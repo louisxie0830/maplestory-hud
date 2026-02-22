@@ -13,6 +13,11 @@ interface SetupWizardProps {
 export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
   const [step, setStep] = useState(0)
 
+  const goNext = useCallback((nextStep: number) => {
+    window.electronAPI.trackEvent('settings.opened', { source: 'setup_wizard', step: nextStep })
+    setStep(nextStep)
+  }, [])
+
   const handleClose = useCallback(() => {
     window.electronAPI.quitApp()
   }, [])
@@ -21,8 +26,8 @@ export const SetupWizard: React.FC<SetupWizardProps> = ({ onComplete }) => {
     <div className="wizard-container">
       <div className="wizard-panel">
         <button className="wizard-close" onClick={handleClose} title="關閉">&times;</button>
-        {step === 0 && <WelcomeStep onNext={() => setStep(1)} />}
-        {step === 1 && <DetectionStep onNext={() => setStep(2)} />}
+        {step === 0 && <WelcomeStep onNext={() => goNext(1)} />}
+        {step === 1 && <DetectionStep onNext={() => goNext(2)} />}
         {step === 2 && <VerificationStep onComplete={onComplete} />}
 
         <div className="wizard-dots">
