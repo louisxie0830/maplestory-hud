@@ -4,6 +4,14 @@ MapleStory HUD 是一個以 Electron + React + TypeScript 開發的桌面覆蓋�
 
 ## 版本更新
 
+### v0.1.10
+
+- 發版一致性：
+  - `package.json` 版本更新為 `0.1.10`，修正 release 檔名與 tag 版本不同步問題。
+  - `release:check` 新增 tag 與 `package.json` 版本一致性檢查（CI 在 tag 觸發時會阻擋不一致版本）。
+- UI：
+  - About 頁版本改為動態讀取 app 真實版本，避免硬編碼顯示錯誤。
+
 ### v0.1.9
 
 - 新功能：

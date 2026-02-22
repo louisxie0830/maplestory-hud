@@ -77,6 +77,7 @@ export interface ElectronAPI {
   exportDiagnostics: () => Promise<string | null>
 
   /** 應用程式控制 */
+  getAppVersion: () => Promise<string>
   quitApp: () => void
   openLogViewer: () => void
 
@@ -192,6 +193,7 @@ const api: ElectronAPI = {
   exportDiagnostics: () => ipcRenderer.invoke('diagnostics:export'),
 
   // App control
+  getAppVersion: () => ipcRenderer.invoke('app:get-version'),
   quitApp: () => ipcRenderer.send('app:quit'),
   openLogViewer: () => ipcRenderer.send('app:open-log-viewer'),
 

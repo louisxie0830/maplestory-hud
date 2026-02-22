@@ -415,6 +415,10 @@ export async function registerIpcHandlers(
   })
 
   // --- App control ---
+  ipcMain.handle('app:get-version', () => {
+    return app.getVersion()
+  })
+
   ipcMain.on('app:quit', () => {
     app.quit()
   })

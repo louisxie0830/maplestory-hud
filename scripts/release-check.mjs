@@ -52,6 +52,17 @@ step('Reading package.json')
 const pkg = JSON.parse(readFileSync(resolve(ROOT, 'package.json'), 'utf8'))
 const win = pkg?.build?.win
 if (!win) fail('Missing build.win configuration in package.json')
+if (!pkg?.version || typeof pkg.version !== 'string') {
+  fail('package.json version is missing')
+}
+
+const tagName = process.env.GITHUB_REF_NAME
+if (tagName && /^v\d+\.\d+\.\d+$/.test(tagName)) {
+  const expected = `v${pkg.version}`
+  if (tagName !== expected) {
+    fail(`Tag/version mismatch: tag=${tagName}, package.json version=${pkg.version}`)
+  }
+}
 
 step('Validating Windows target and icons')
 const targets = Array.isArray(win.target) ? win.target : []

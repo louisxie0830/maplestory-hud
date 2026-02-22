@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useEffect } from 'react'
 
 const FEATURES = [
   {
@@ -80,17 +80,32 @@ const FEATURES = [
 /** 關於頁面，展示應用程式功能清單、快捷鍵與使用流程 */
 export const AboutTab: React.FC = () => {
   const [diagPath, setDiagPath] = useState<string | null>(null)
+  const [appVersion, setAppVersion] = useState('...')
 
   const exportDiagnostics = useCallback(async () => {
     const filePath = await window.electronAPI.exportDiagnostics()
     if (filePath) setDiagPath(filePath)
   }, [])
 
+  useEffect(() => {
+    let active = true
+    void window.electronAPI.getAppVersion().then((version) => {
+      if (!active) return
+      setAppVersion(version)
+    }).catch(() => {
+      if (!active) return
+      setAppVersion('unknown')
+    })
+    return () => {
+      active = false
+    }
+  }, [])
+
   return (
     <div className="about-tab">
       <div className="about-header">
         <div className="about-title">MapleStory HUD</div>
-        <div className="about-version">v0.1.9</div>
+        <div className="about-version">v{appVersion}</div>
         <div className="about-desc">
           楓之谷即時遊戲資訊顯示工具 — 透過螢幕擷取 + OCR 辨識，在遊戲畫面上疊加角色狀態、計時器、地圖資訊與傷害統計。
         </div>
