@@ -14,8 +14,9 @@
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build:win": "npm run build && electron-builder --win",
-    "build:win:dir": "npm run build && electron-builder --win --dir",
+    "build:win": "npm run build && electron-builder --win --publish never",
+    "build:win:dir": "npm run build && electron-builder --win --dir --publish never",
+    "build:win:publish": "npm run build && electron-builder --win --publish always",
     "build:mac": "npm run build && electron-builder --mac",
     "fetch-data": "tsx scripts/fetch-game-data.ts",
     "release:check": "node scripts/release-check.mjs"

@@ -10,6 +10,7 @@ import { preprocessImage, getPreset } from './ocr/preprocessor'
 import { recognizeImage } from './ocr/ocr-engine'
 import { DEFAULT_OCR_CONFIDENCE, DEFAULT_PREPROCESS_THRESHOLD, DEFAULT_CAPTURE_INTERVAL_MS } from '../shared/constants'
 import log from 'electron-log/main'
+import { trackTelemetryEvent } from './telemetry'
 
 interface SetupCallbacks {
   startCaptureJobs: () => void
@@ -368,6 +369,11 @@ export async function registerIpcHandlers(
     showLogWindow()
   })
 
+  // --- Telemetry ---
+  ipcMain.handle('analytics:track', (_event, name: string, props?: Record<string, unknown>) => {
+    trackTelemetryEvent(name, props)
+  })
+
   // --- Setup wizard ---
   ipcMain.handle('setup:is-completed', () => {
     return store.get('_setupCompleted', false)
@@ -386,6 +392,7 @@ export async function registerIpcHandlers(
     store.set('_setupCompleted', true)
     setupCallbacks.startCaptureJobs()
     setupCallbacks.registerHotkeys()
+    trackTelemetryEvent('setup.completed')
     log.info('Setup wizard completed')
     return true
   })
