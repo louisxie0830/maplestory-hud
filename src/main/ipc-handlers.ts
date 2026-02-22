@@ -360,6 +360,60 @@ export async function registerIpcHandlers(
     }
   })
 
+  // --- Diagnostics ---
+  ipcMain.handle('diagnostics:export', async () => {
+    try {
+      const now = new Date()
+      const stamp = now.toISOString().replace(/[:.]/g, '-')
+      const defaultName = `maplestory-hud-diagnostics-${stamp}.json`
+      const { canceled, filePath } = await dialog.showSaveDialog(overlayWindow, {
+        defaultPath: defaultName,
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+      })
+      if (canceled || !filePath) return null
+
+      const data = {
+        generatedAt: now.toISOString(),
+        app: {
+          name: app.getName(),
+          version: app.getVersion(),
+          platform: process.platform,
+          arch: process.arch
+        },
+        telemetry: {
+          counters: store.get('telemetry.counters', {}),
+          lastEvents: store.get('telemetry.events', []).slice(-50)
+        },
+        settings: {
+          overlay: store.get('overlay', { opacity: 1, isLocked: true, theme: 'dark' }),
+          captureIntervals: store.get('captureIntervals', {}),
+          ocr: store.get('ocr', {
+            confidenceThreshold: DEFAULT_OCR_CONFIDENCE,
+            preprocessInvert: true,
+            preprocessThreshold: DEFAULT_PREPROCESS_THRESHOLD
+          }),
+          hotkeys: store.get('hotkeys', {
+            toggleCapture: 'F7',
+            resetStats: 'F8',
+            toggleLock: 'F9',
+            screenshot: 'F10'
+          })
+        },
+        logs: {
+          path: log.transports.file.getFile().path
+        }
+      }
+
+      await writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8')
+      trackTelemetryEvent('diagnostics.exported')
+      log.info(`Diagnostics exported: ${filePath}`)
+      return filePath
+    } catch (err) {
+      log.error('diagnostics:export failed:', err)
+      return null
+    }
+  })
+
   // --- App control ---
   ipcMain.on('app:quit', () => {
     app.quit()

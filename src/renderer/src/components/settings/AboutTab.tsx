@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useCallback } from 'react'
 
 const FEATURES = [
   {
@@ -79,13 +79,33 @@ const FEATURES = [
 
 /** 關於頁面，展示應用程式功能清單、快捷鍵與使用流程 */
 export const AboutTab: React.FC = () => {
+  const [diagPath, setDiagPath] = useState<string | null>(null)
+
+  const exportDiagnostics = useCallback(async () => {
+    const filePath = await window.electronAPI.exportDiagnostics()
+    if (filePath) setDiagPath(filePath)
+  }, [])
+
   return (
     <div className="about-tab">
       <div className="about-header">
         <div className="about-title">MapleStory HUD</div>
-        <div className="about-version">v0.1.0</div>
+        <div className="about-version">v0.1.9</div>
         <div className="about-desc">
           楓之谷即時遊戲資訊顯示工具 — 透過螢幕擷取 + OCR 辨識，在遊戲畫面上疊加角色狀態、計時器、地圖資訊與傷害統計。
+        </div>
+      </div>
+
+      <div className="about-section">
+        <div className="about-section-title">
+          <span className="about-section-icon">🩺</span>
+          診斷工具
+        </div>
+        <div className="about-actions">
+          <button className="settings-btn" onClick={exportDiagnostics}>
+            匯出診斷報告（JSON）
+          </button>
+          {diagPath && <div className="about-note">已匯出：{diagPath}</div>}
         </div>
       </div>
 

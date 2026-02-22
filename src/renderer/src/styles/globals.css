@@ -1176,6 +1176,12 @@ input, textarea, select { user-select: text; }
 .about-steps { padding-left: 16px; display: flex; flex-direction: column; gap: 3px; }
 .about-steps li { font-size: 10px; color: var(--text-secondary); line-height: 1.5; }
 .about-steps li::marker { color: var(--color-accent); font-weight: 700; }
+.about-actions { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.about-note {
+  font-size: 9px;
+  color: var(--text-muted);
+  word-break: break-all;
+}
 .about-footer { text-align: center; font-size: 9px; color: var(--text-muted); padding-top: 6px; }
 
 /* ========== Setup Wizard ========== */

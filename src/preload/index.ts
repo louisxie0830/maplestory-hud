@@ -74,6 +74,7 @@ export interface ElectronAPI {
 
   /** 產品事件追蹤（本機儲存） */
   trackEvent: (name: string, props?: Record<string, unknown>) => Promise<void>
+  exportDiagnostics: () => Promise<string | null>
 
   /** 應用程式控制 */
   quitApp: () => void
@@ -188,6 +189,7 @@ const api: ElectronAPI = {
   getLogsPath: () => ipcRenderer.invoke('logs:get-path'),
   openLogsFolder: () => ipcRenderer.invoke('logs:open-folder'),
   trackEvent: (name, props) => ipcRenderer.invoke('analytics:track', name, props),
+  exportDiagnostics: () => ipcRenderer.invoke('diagnostics:export'),
 
   // App control
   quitApp: () => ipcRenderer.send('app:quit'),

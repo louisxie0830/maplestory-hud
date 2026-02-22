@@ -4,6 +4,15 @@ MapleStory HUD 是一個以 Electron + React + TypeScript 開發的桌面覆蓋�
 
 ## 版本更新
 
+### v0.1.9
+
+- 新功能：
+  - 新增「診斷報告匯出」功能（About 頁一鍵輸出 JSON）。
+  - 診斷內容包含 app 版本、平台資訊、關鍵設定、telemetry 計數與 log 路徑。
+- 可維運性：
+  - 問題回報可直接附診斷檔，縮短定位時間。
+  - 新增 `diagnostics.exported` 事件計數，方便追蹤支援流程使用率。
+
 ### v0.1.8
 
 - OCR 強化：
