@@ -25,21 +25,13 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Validate GH_TOKEN
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
-        run: |
-          if (-not $env:GH_TOKEN) { throw "Missing GH_TOKEN secret" }
-
       - name: Quality gates
         run: npm run -s release:check
 
       - name: Build Windows installer
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
-          GH_TOKEN: ${{ secrets.GH_TOKEN || github.token }}
-        run: npm run -s build:win:publish
+        run: npm run -s build:win
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -49,3 +41,12 @@ jobs:
             dist/*.exe
             dist/*.yml
             dist/*.blockmap
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            dist/*.exe
+            dist/*.yml
+            dist/*.blockmap
+          generate_release_notes: true
