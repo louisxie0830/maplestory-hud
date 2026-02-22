@@ -16,13 +16,14 @@ function fail(message) {
 }
 
 function run(cmd, args) {
-  const result = spawnSync(cmd, args, {
+  const actualCmd = process.platform === 'win32' && cmd === 'npm' ? 'npm.cmd' : cmd
+  const result = spawnSync(actualCmd, args, {
     cwd: ROOT,
     stdio: 'inherit',
     env: process.env
   })
   if (result.status !== 0) {
-    fail(`${cmd} ${args.join(' ')} exited with code ${result.status}`)
+    fail(`${actualCmd} ${args.join(' ')} exited with code ${result.status}`)
   }
 }
 
