@@ -14,6 +14,12 @@ export interface CaptureScreenResult {
   gameWindowFound: boolean
 }
 
+export interface SelectableWindowSource {
+  id: string
+  name: string
+  isGameCandidate: boolean
+}
+
 /** Cached screen capture with TTL to avoid redundant full-screen grabs */
 let captureCache: {
   image: Electron.NativeImage
@@ -23,11 +29,41 @@ let captureCache: {
 
 const CACHE_TTL_MS = 100
 
+let preferredWindowSourceId: string | null = null
+let preferredWindowName: string | null = null
+
 /** Throttle "no source found" warnings to avoid log spam on high-frequency capture path */
 let lastNoSourceWarn = 0
 
 /** In-flight promise deduplication — prevents parallel desktopCapturer calls */
 let inFlightCapture: Promise<CaptureScreenResult | null> | null = null
+
+/** 設定使用者指定的首選擷取視窗（依 source id，並保留名稱作為 fallback） */
+export function setPreferredCaptureWindow(sourceId: string | null, windowName?: string): void {
+  preferredWindowSourceId = sourceId?.trim() || null
+  preferredWindowName = windowName?.trim() || null
+  captureCache = null
+}
+
+/** 列出可供使用者選擇的視窗來源，MapleStory 候選會排在前方 */
+export async function listSelectableWindows(): Promise<SelectableWindowSource[]> {
+  const sources = await desktopCapturer.getSources({
+    types: ['window'],
+    thumbnailSize: { width: 1, height: 1 }
+  })
+  return sources
+    .filter((s) => s.name.trim().length > 0)
+    .map((s) => ({
+      id: s.id,
+      name: s.name,
+      isGameCandidate: GAME_WINDOW_NAMES.some((n) => s.name.includes(n))
+    }))
+    .sort((a, b) => {
+      if (a.isGameCandidate && !b.isGameCandidate) return -1
+      if (!a.isGameCandidate && b.isGameCandidate) return 1
+      return a.name.localeCompare(b.name)
+    })
+}
 
 /** 擷取整個螢幕畫面，優先尋找遊戲視窗，並透過快取與去重避免重複擷取 */
 export async function captureScreen(): Promise<CaptureScreenResult | null> {
@@ -59,9 +95,16 @@ async function captureScreenImpl(): Promise<CaptureScreenResult | null> {
       thumbnailSize: { width, height }
     })
 
-    const gameSource = windowSources.find(
+    const preferredById = preferredWindowSourceId
+      ? windowSources.find((s) => s.id === preferredWindowSourceId)
+      : undefined
+    const preferredByName = !preferredById && preferredWindowName
+      ? windowSources.find((s) => s.name === preferredWindowName)
+      : undefined
+    const autoGameSource = windowSources.find(
       (s) => GAME_WINDOW_NAMES.some((n) => s.name.includes(n))
     )
+    const gameSource = preferredById || preferredByName || autoGameSource
 
     if (gameSource) {
       captureCache = { image: gameSource.thumbnail, gameWindowFound: true, timestamp: Date.now() }
@@ -139,13 +182,14 @@ export async function captureRegion(region: CaptureRegion): Promise<{ buffer: Bu
 /** 輕量檢查：遊戲視窗是否可見 */
 export async function isGameWindowVisible(): Promise<boolean> {
   try {
-    const sources = await desktopCapturer.getSources({
-      types: ['window'],
-      thumbnailSize: { width: 1, height: 1 }
-    })
-    return sources.some(
-      (s) => GAME_WINDOW_NAMES.some((n) => s.name.includes(n))
-    )
+    const sources = await listSelectableWindows()
+    if (preferredWindowSourceId) {
+      return sources.some((s) => s.id === preferredWindowSourceId)
+    }
+    if (preferredWindowName) {
+      return sources.some((s) => s.name === preferredWindowName)
+    }
+    return sources.some((s) => s.isGameCandidate)
   } catch {
     return false
   }

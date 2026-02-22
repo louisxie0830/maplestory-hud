@@ -11,6 +11,10 @@ export interface UserStoreSchema {
     enabled: boolean
   }>
   captureIntervals: Record<string, number>
+  captureTarget: {
+    sourceId: string
+    windowName: string
+  }
   ocr: {
     confidenceThreshold: number
     preprocessInvert: boolean
@@ -70,6 +74,7 @@ export interface UserStoreSchema {
     accessibility: UserStoreSchema['accessibility']
     locale: UserStoreSchema['locale']
     dataSource: UserStoreSchema['dataSource']
+    captureTarget: UserStoreSchema['captureTarget']
   }>
   _setupCompleted: boolean
 }
@@ -84,6 +89,10 @@ export function getUserStore(): Store<UserStoreSchema> {
       defaults: {
         captureRegions: {},
         captureIntervals: { ...CAPTURE_INTERVALS },
+        captureTarget: {
+          sourceId: '',
+          windowName: ''
+        },
         ocr: {
           confidenceThreshold: DEFAULT_OCR_CONFIDENCE,
           preprocessInvert: true,

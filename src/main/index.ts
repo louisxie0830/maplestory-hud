@@ -16,6 +16,7 @@ import log from 'electron-log/main'
 import { applyAppIcon } from './utils/icon'
 import { checkForUpdates } from './update-checker'
 import { addAppEvent } from './event-center'
+import { setPreferredCaptureWindow } from './capture/screen-capture'
 
 // Windows needs hardware acceleration disabled for transparent windows
 if (process.platform === 'win32') {
@@ -90,6 +91,8 @@ app.whenReady().then(async () => {
   // Migration: existing users who already have config should skip the wizard
   // Must run BEFORE ensureDefaultRegions (which would populate empty stores)
   const store = getUserStore()
+  const captureTarget = store.get('captureTarget', { sourceId: '', windowName: '' })
+  setPreferredCaptureWindow(captureTarget.sourceId || null, captureTarget.windowName)
   const setupDone = store.get('_setupCompleted', false)
   if (!setupDone) {
     const existingRegions = store.get('captureRegions', {})

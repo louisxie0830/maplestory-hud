@@ -3,6 +3,11 @@ import type { MapData, MonsterData, TrainingSpotData, TimerConfig } from '../sha
 
 /** Electron 預載 API — 渲染程序透過 contextBridge 使用的所有 IPC 方法 */
 export interface ElectronAPI {
+  /** 設定精靈：遊戲視窗選擇 */
+  listGameWindows: () => Promise<Array<{ id: string; name: string; isGameCandidate: boolean }>>
+  getSelectedGameWindow: () => Promise<{ sourceId: string; windowName: string } | null>
+  selectGameWindow: (sourceId: string) => Promise<{ sourceId: string; windowName: string } | null>
+
   /** OCR 資料串流 — 回傳清理函式 */
   onOcrResult: (regionId: string, callback: (data: unknown) => void) => () => void
 
@@ -299,6 +304,9 @@ const api: ElectronAPI = {
   openLogViewer: () => ipcRenderer.send('app:open-log-viewer'),
 
   // Setup wizard
+  listGameWindows: () => ipcRenderer.invoke('setup:list-game-windows'),
+  getSelectedGameWindow: () => ipcRenderer.invoke('setup:get-selected-game-window'),
+  selectGameWindow: (sourceId) => ipcRenderer.invoke('setup:select-game-window', sourceId),
   isSetupCompleted: () => ipcRenderer.invoke('setup:is-completed'),
   getScreenInfo: () => ipcRenderer.invoke('setup:get-screen-info'),
   checkGameWindow: () => ipcRenderer.invoke('setup:check-game-window'),

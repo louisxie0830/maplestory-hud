@@ -27,8 +27,8 @@ export const RegionHandle: React.FC<RegionHandleProps> = ({
   const { rect, handleMouseDown, handleResizeMouseDown } = useResizable({
     initialRect,
     enabled: true,
-    minWidth: 20,
-    minHeight: 10,
+    minWidth: 30,
+    minHeight: 14,
     onRectChange
   })
 
@@ -40,8 +40,8 @@ export const RegionHandle: React.FC<RegionHandleProps> = ({
         top: rect.y,
         width: rect.width,
         height: rect.height,
-        border: `2px solid ${color}`,
-        background: `${color}26`,
+        border: `3px solid ${color}`,
+        background: `${color}33`,
         cursor: 'move',
         zIndex: 10001
       }}
@@ -55,15 +55,15 @@ export const RegionHandle: React.FC<RegionHandleProps> = ({
           left: 0,
           background: color,
           color: '#fff',
-          padding: '1px 6px',
-          fontSize: '11px',
+          padding: '2px 8px',
+          fontSize: '12px',
           fontWeight: 600,
           borderRadius: '3px 3px 0 0',
           whiteSpace: 'nowrap'
         }}
       >
         {REGION_NAMES[regionId] || regionId}
-        <span style={{ marginLeft: '6px', fontWeight: 400, fontSize: '10px' }}>
+        <span style={{ marginLeft: '6px', fontWeight: 400, fontSize: '11px' }}>
           {rect.width}x{rect.height}
         </span>
       </div>
@@ -72,17 +72,17 @@ export const RegionHandle: React.FC<RegionHandleProps> = ({
       {EDGES.map((edge) => {
         const style: React.CSSProperties = {
           position: 'absolute',
-          width: edge.length === 1 ? (edge === 'n' || edge === 's' ? '100%' : '6px') : '8px',
-          height: edge.length === 1 ? (edge === 'e' || edge === 'w' ? '100%' : '6px') : '8px',
+          width: edge.length === 1 ? (edge === 'n' || edge === 's' ? '100%' : '10px') : '12px',
+          height: edge.length === 1 ? (edge === 'e' || edge === 'w' ? '100%' : '10px') : '12px',
           cursor: EDGE_CURSORS[edge],
           zIndex: 10002
         }
 
         // Position
-        if (edge.includes('n')) style.top = -3
-        if (edge.includes('s')) style.bottom = -3
-        if (edge.includes('w')) style.left = -3
-        if (edge.includes('e')) style.right = -3
+        if (edge.includes('n')) style.top = -5
+        if (edge.includes('s')) style.bottom = -5
+        if (edge.includes('w')) style.left = -5
+        if (edge.includes('e')) style.right = -5
         if (edge === 'n' || edge === 's') { style.left = 0; style.right = 0 }
         if (edge === 'e' || edge === 'w') { style.top = 0; style.bottom = 0 }
 
@@ -94,11 +94,11 @@ export const RegionHandle: React.FC<RegionHandleProps> = ({
             {isCorner && (
               <div
                 style={{
-                  width: '8px',
-                  height: '8px',
+                  width: '12px',
+                  height: '12px',
                   background: color,
                   borderRadius: '50%',
-                  border: '1px solid #fff'
+                  border: '2px solid #fff'
                 }}
               />
             )}

@@ -216,8 +216,13 @@ export const useSettingsStore = create<SettingsState>()(
   },
   setCaptureRunning: (running) => set({ isCaptureRunning: running }),
 
-  openSettings: (tab) => set({ isSettingsOpen: true, settingsTab: tab || 'general' }),
-  closeSettings: () => set({ isSettingsOpen: false }),
+  openSettings: (tab) => {
+    set({ isSettingsOpen: true, settingsTab: tab || 'general' })
+    window.electronAPI?.setMousePassthrough(false).catch(() => {})
+  },
+  closeSettings: () => {
+    set({ isSettingsOpen: false })
+  },
   setSettingsTab: (tab) => set({ settingsTab: tab }),
 
   setCaptureRegion: (regionId, region) => {
@@ -240,8 +245,14 @@ export const useSettingsStore = create<SettingsState>()(
     window.electronAPI?.updateOcrSettings(settings)
   },
 
-  openRegionSelector: () => set({ isRegionSelectorOpen: true, isSettingsOpen: false }),
-  closeRegionSelector: () => set({ isRegionSelectorOpen: false, isSettingsOpen: true }),
+  openRegionSelector: () => {
+    set({ isRegionSelectorOpen: true, isSettingsOpen: false })
+    window.electronAPI?.setMousePassthrough(false).catch(() => {})
+  },
+  closeRegionSelector: () => {
+    set({ isRegionSelectorOpen: false, isSettingsOpen: true })
+    window.electronAPI?.setMousePassthrough(false).catch(() => {})
+  },
 
   loadFullSettings: (settings) => {
     const overlay = (settings.overlay ?? {}) as Record<string, unknown>

@@ -59,9 +59,10 @@ export const RegionSelector: React.FC = () => {
     <div className="region-selector-overlay">
       {/* Control bar */}
       <div className="region-selector-controls">
-        <span style={{ fontSize: '12px' }}>
-          拖動或調整擷取區域大小
-        </span>
+        <div className="region-selector-title-wrap">
+          <span className="region-selector-title">區域校準模式</span>
+          <span className="region-selector-subtitle">拖動框內可移動，拖動四角圓點可縮放</span>
+        </div>
         <div style={{ display: 'flex', gap: '6px' }}>
           <button className="settings-btn" onClick={handleApply}>
             套用

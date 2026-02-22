@@ -5,7 +5,7 @@ import { toggleClickThrough, getClickThroughState } from './overlay-window'
 import { showLogWindow } from './log-window'
 import { getUserStore, type UserStoreSchema } from './data/user-data-store'
 import { loadGameData, getMapInfo, searchMaps, getMonsterInfo, getMonsterInfoBatch, getTrainingSpots, getTrainingSpotsByMapId, getCurrentDataSourceInfo } from './data/game-data-loader'
-import { captureRegion, isGameWindowVisible } from './capture/screen-capture'
+import { captureRegion, isGameWindowVisible, listSelectableWindows, setPreferredCaptureWindow } from './capture/screen-capture'
 import { addCaptureJob, removeCaptureJob, pauseAll, resumeAll, isRunning } from './capture/capture-scheduler'
 import { preprocessImage, getPreset } from './ocr/preprocessor'
 import { recognizeImage } from './ocr/ocr-engine'
@@ -87,7 +87,12 @@ export async function registerIpcHandlers(
     locale: (v) => v === 'zh-TW' || v === 'en',
     dataSource: (v) => typeof v === 'object' && v !== null,
     update: (v) => typeof v === 'object' && v !== null,
-    profiles: (v) => typeof v === 'object' && v !== null
+    profiles: (v) => typeof v === 'object' && v !== null,
+    captureTarget: (v) => {
+      if (!v || typeof v !== 'object') return false
+      const t = v as Record<string, unknown>
+      return typeof t.sourceId === 'string' && typeof t.windowName === 'string'
+    }
   }
 
   const HOTKEY_PATTERN = /^(Ctrl\+|Alt\+|Shift\+|CommandOrControl\+){0,3}(F\d{1,2}|[A-Z0-9])$/i
@@ -111,7 +116,8 @@ export async function registerIpcHandlers(
     performance: store.get('performance', { mode: 'balanced' }),
     accessibility: store.get('accessibility', { fontScale: 1, highContrast: false }),
     locale: store.get('locale', 'zh-TW'),
-    dataSource: store.get('dataSource', { mode: 'bundled', pluginDir: '' })
+    dataSource: store.get('dataSource', { mode: 'bundled', pluginDir: '' }),
+    captureTarget: store.get('captureTarget', { sourceId: '', windowName: '' })
   })
 
   ipcMain.handle('settings:update', async (_event, settings: Record<string, unknown>) => {
@@ -127,6 +133,10 @@ export async function registerIpcHandlers(
         continue
       }
       store.set(key, value)
+      if (key === 'captureTarget') {
+        const target = value as { sourceId?: string; windowName?: string }
+        setPreferredCaptureWindow(target.sourceId?.trim() || null, target.windowName)
+      }
       if (key === 'dataSource') {
         await loadGameData()
       }
@@ -214,6 +224,9 @@ export async function registerIpcHandlers(
     store.set('accessibility', profile.accessibility)
     store.set('locale', profile.locale)
     store.set('dataSource', profile.dataSource)
+    store.set('captureTarget', profile.captureTarget ?? { sourceId: '', windowName: '' })
+    const captureTarget = store.get('captureTarget', { sourceId: '', windowName: '' })
+    setPreferredCaptureWindow(captureTarget.sourceId || null, captureTarget.windowName)
     await loadGameData()
     unregisterHotkeys()
     setupCallbacks.registerHotkeys()
@@ -799,6 +812,35 @@ export async function registerIpcHandlers(
 
   ipcMain.handle('setup:check-game-window', async () => {
     return await isGameWindowVisible()
+  })
+
+  ipcMain.handle('setup:list-game-windows', async () => {
+    try {
+      return await listSelectableWindows()
+    } catch (err) {
+      log.warn('setup:list-game-windows failed', err)
+      return []
+    }
+  })
+
+  ipcMain.handle('setup:get-selected-game-window', async () => {
+    const target = store.get('captureTarget', { sourceId: '', windowName: '' })
+    if (!target.sourceId) return null
+    return target
+  })
+
+  ipcMain.handle('setup:select-game-window', async (_event, sourceId: string) => {
+    const sourceIdNorm = String(sourceId || '').trim()
+    if (!sourceIdNorm) return null
+    const windows = await listSelectableWindows()
+    const selected = windows.find((w) => w.id === sourceIdNorm)
+    if (!selected) return null
+
+    const target = { sourceId: selected.id, windowName: selected.name }
+    store.set('captureTarget', target)
+    setPreferredCaptureWindow(target.sourceId, target.windowName)
+    addAppEvent('info', 'setup', `Selected capture window: ${selected.name}`)
+    return target
   })
 
   ipcMain.handle('setup:complete', () => {

@@ -1132,19 +1132,38 @@ input, textarea, select { user-select: text; }
 .region-selector-overlay {
   position: fixed; inset: 0;
   z-index: 10000;
-  background: var(--bg-overlay);
+  background:
+    radial-gradient(circle at 30% 20%, #ffffff22 0%, #ffffff00 45%),
+    rgba(24, 30, 55, 0.34);
 }
 
 .region-selector-controls {
-  position: fixed; top: 10px; left: 50%;
+  position: fixed; top: 12px; left: 50%;
   transform: translateX(-50%);
   display: flex; align-items: center; gap: 10px;
-  padding: 6px 14px;
-  background: var(--bg-hud);
+  padding: 8px 14px;
+  background: color-mix(in srgb, var(--bg-hud) 88%, #ffffff 12%);
   border: 1px solid var(--border-frame);
   border-radius: 16px;
   box-shadow: var(--shadow);
   z-index: 10002;
+}
+
+.region-selector-title-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.region-selector-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.region-selector-subtitle {
+  font-size: 10px;
+  color: var(--text-secondary);
 }
 
 /* ========== Calibration ========== */
