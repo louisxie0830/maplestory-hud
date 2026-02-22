@@ -1,0 +1,58 @@
+
+  <svg width="512" height="512" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#170f14"/>
+        <stop offset="50%" style="stop-color:#2a1217"/>
+        <stop offset="100%" style="stop-color:#10070c"/>
+      </linearGradient>
+      <radialGradient id="glow" cx="50%" cy="35%" r="65%">
+        <stop offset="0%" style="stop-color:#ff7575;stop-opacity:0.25"/>
+        <stop offset="100%" style="stop-color:#ff7575;stop-opacity:0"/>
+      </radialGradient>
+      <linearGradient id="ring" x1="0%" y1="0%" x2="100%" y2="100%">
+        <stop offset="0%" style="stop-color:#ffc4a8"/>
+        <stop offset="100%" style="stop-color:#ff6e58"/>
+      </linearGradient>
+      <linearGradient id="leaf" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" style="stop-color:#ff5a4e"/>
+        <stop offset="100%" style="stop-color:#ca1f2e"/>
+      </linearGradient>
+      <linearGradient id="leafVein" x1="0%" y1="0%" x2="0%" y2="100%">
+        <stop offset="0%" style="stop-color:#ffd1b0"/>
+        <stop offset="100%" style="stop-color:#ffab92"/>
+      </linearGradient>
+    </defs>
+
+    <rect x="16" y="16" width="480" height="480" rx="96" ry="96" fill="url(#bg)"/>
+    <rect x="16" y="16" width="480" height="480" rx="96" ry="96"
+      fill="none" stroke="#ff8b73" stroke-opacity="0.65" stroke-width="7"/>
+    <circle cx="256" cy="256" r="176" fill="url(#glow)"/>
+
+    <!-- HUD ring -->
+    <circle cx="256" cy="256" r="138"
+      fill="none" stroke="url(#ring)" stroke-width="16" stroke-linecap="round"
+      stroke-dasharray="130 20 26 18 48 24 78 40"/>
+    <circle cx="256" cy="256" r="112"
+      fill="none" stroke="#ffb39f" stroke-opacity="0.5" stroke-width="4" stroke-dasharray="4 16"/>
+
+    <!-- Maple leaf -->
+    <path fill="url(#leaf)" d="
+      M256 110
+      L288 156 L342 136 L324 192 L380 214 L334 246
+      L360 306 L298 288 L286 358 L256 330
+      L226 358 L214 288 L152 306 L178 246
+      L132 214 L188 192 L170 136 L224 156 Z"/>
+    <path fill="url(#leafVein)" d="
+      M252 160 L260 160 L262 308 L250 308 Z
+      M256 206 L300 184 L304 194 L258 216 Z
+      M256 206 L212 184 L208 194 L254 216 Z
+      M256 252 L314 246 L314 258 L256 264 Z
+      M256 252 L198 246 L198 258 L256 264 Z"/>
+
+    <!-- Center reticle -->
+    <circle cx="256" cy="256" r="18" fill="#ffd6c8"/>
+    <circle cx="256" cy="256" r="8" fill="#b8142b"/>
+    <path d="M256 84 L256 118 M256 394 L256 428 M84 256 L118 256 M394 256 L428 256"
+      stroke="#ffcab7" stroke-width="7" stroke-linecap="round" opacity="0.8"/>
+  </svg>

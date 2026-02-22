@@ -1,0 +1,209 @@
+/* =============================================
+   MapleStory HUD — Log Viewer（全部實色）
+   ============================================= */
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  background: #16162e;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
+  color: #e0e0ec;
+  font-size: 12px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.log-viewer {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+/* --- Toolbar --- */
+.log-toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  background: #1a1a32;
+  border-bottom: 1px solid #2a2a48;
+  flex-shrink: 0;
+}
+
+.log-filters {
+  display: flex;
+  gap: 4px;
+}
+
+.log-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #141428;
+  border: 1px solid #2a2a48;
+  border-radius: 4px;
+  padding: 4px 10px;
+  color: #8888a8;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s;
+}
+
+.log-filter-btn:hover {
+  color: #e0e0ec;
+  background: #1e2040;
+}
+
+.log-filter-btn.active {
+  color: #e0e0ec;
+  border-color: #4e8aff;
+  background: #1a2240;
+}
+
+.log-filter-btn.active.info { border-color: #4e8aff; background: #1a2240; }
+.log-filter-btn.active.warn { border-color: #ffb347; background: #2a2420; }
+.log-filter-btn.active.error { border-color: #e84057; background: #2a1820; }
+
+.log-filter-count {
+  font-size: 10px;
+  background: #1e2040;
+  border-radius: 8px;
+  padding: 1px 5px;
+  font-weight: 400;
+}
+
+.log-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.log-action-btn {
+  background: #141428;
+  border: 1px solid #2a2a48;
+  border-radius: 4px;
+  padding: 4px 10px;
+  color: #8888a8;
+  cursor: pointer;
+  font-size: 11px;
+  transition: all 0.15s;
+}
+
+.log-action-btn:hover {
+  color: #e0e0ec;
+  background: #1e2040;
+}
+
+.log-action-btn.active {
+  color: #40d888;
+  border-color: #286848;
+}
+
+/* --- Log path --- */
+.log-path {
+  padding: 4px 12px;
+  font-size: 10px;
+  color: #555570;
+  background: #121226;
+  border-bottom: 1px solid #2a2a48;
+  flex-shrink: 0;
+  font-family: 'Consolas', 'Cascadia Code', 'SF Mono', monospace;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Log content --- */
+.log-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 4px 0;
+  font-family: 'Consolas', 'Cascadia Code', 'SF Mono', monospace;
+  font-size: 11px;
+  line-height: 1.6;
+}
+
+.log-line {
+  display: flex;
+  gap: 8px;
+  padding: 1px 12px;
+  transition: background 0.1s;
+}
+
+.log-line:hover {
+  background: #1e2040;
+}
+
+.log-line.level-warn {
+  background: #222018;
+}
+
+.log-line.level-error {
+  background: #221820;
+}
+
+.log-ts {
+  color: #555570;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.log-level {
+  font-weight: 700;
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  text-align: center;
+  min-width: 40px;
+  flex-shrink: 0;
+  line-height: 1.5;
+}
+
+.log-level.info { color: #5888ff; }
+.log-level.warn { color: #ffb347; }
+.log-level.error { color: #e84057; }
+.log-level.debug { color: #8888a8; }
+
+.log-msg {
+  color: #c0c0d0;
+  word-break: break-all;
+}
+
+.log-line.level-error .log-msg {
+  color: #ff8090;
+}
+
+.log-line.level-warn .log-msg {
+  color: #ffd0a0;
+}
+
+.log-empty {
+  text-align: center;
+  color: #555570;
+  padding: 40px;
+  font-family: 'Segoe UI', 'Microsoft JhengHei', sans-serif;
+  font-size: 13px;
+}
+
+/* --- Scrollbar --- */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #24243e;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #303050;
+}
