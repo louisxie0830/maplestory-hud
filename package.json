@@ -1,6 +1,6 @@
 {
   "name": "maplestory-hud",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "MapleStory TMS HUD Overlay - 楓之谷即時遊戲資訊顯示",
   "main": "./out/main/index.js",
   "scripts": {
