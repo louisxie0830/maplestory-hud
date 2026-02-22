@@ -59,9 +59,6 @@ jobs:
             dist/*.exe
             dist/*.dmg
             dist/*.zip
-            dist/*.yml
-            dist/*.blockmap
-            dist/builder-debug.yml
           if-no-files-found: warn
           retention-days: 7
 
@@ -95,5 +92,3 @@ jobs:
             artifacts/**/*.exe
             artifacts/**/*.dmg
             artifacts/**/*.zip
-            artifacts/**/*.yml
-            artifacts/**/*.blockmap

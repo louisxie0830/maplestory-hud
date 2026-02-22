@@ -4,6 +4,13 @@ MapleStory HUD 是一個以 Electron + React + TypeScript 開發的桌面覆蓋�
 
 ## 版本更新
 
+### v0.1.20
+
+- GitHub Release 發布流程穩定性修正：
+  - 修正 `publish-release` 的 asset 上傳策略，僅發布可下載安裝檔（`.exe` / `.dmg` / `.zip`）。
+  - 移除 `*.yml` / `*.blockmap` 由 `action-gh-release` 上傳，避免 `update-a-release-asset` 404 錯誤。
+  - 解決 `publish-release Not Found - update-a-release-asset` 導致 release job 失敗的問題。
+
 ### v0.1.19
 
 - 發版流程修正（macOS）：
