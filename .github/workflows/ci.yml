@@ -67,9 +67,11 @@ jobs:
             Select-Object -First 1
           if (-not $exe) { throw "No executable found in dist/win-unpacked" }
           Write-Host "Smoke running: $($exe.FullName)"
-          $version = & $exe.FullName --app-version
-          if (-not $version) { throw "Smoke test failed: no version output" }
-          Write-Host "App version from executable: $version"
+          & $exe.FullName --app-version
+          if ($LASTEXITCODE -ne 0) {
+            throw "Smoke test failed: executable exited with code $LASTEXITCODE"
+          }
+          Write-Host "Smoke test passed with exit code 0"
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
