@@ -1,4 +1,4 @@
-name: Release Windows
+name: Release
 
 on:
   push:
@@ -14,9 +14,14 @@ permissions:
   contents: write
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
-    timeout-minutes: 45
+  build:
+    name: Build (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
 
     steps:
       - name: Checkout
@@ -35,33 +40,48 @@ jobs:
         run: npm run -s release:check
 
       - name: Build Windows installer
+        if: matrix.os == 'windows-latest'
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
         run: npm run -s build:win
 
+      - name: Build macOS installer
+        if: matrix.os == 'macos-latest'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npm run build && electron-builder --mac --publish never
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installer
+          name: release-${{ matrix.os }}
           path: |
             dist/*.exe
+            dist/*.dmg
+            dist/*.zip
             dist/*.yml
             dist/*.blockmap
             dist/builder-debug.yml
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 7
 
   publish-release:
-    needs: build-windows
+    needs: build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
-      - name: Download build artifacts
+      - name: Download Windows artifacts
         uses: actions/download-artifact@v4
         with:
-          name: windows-installer
+          name: release-windows-latest
           path: artifacts/windows
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: release-macos-latest
+          path: artifacts/macos
 
       - name: List artifacts
         run: find artifacts -type f | sort
@@ -72,6 +92,8 @@ jobs:
           generate_release_notes: true
           prerelease: ${{ contains(github.ref_name, '-') }}
           files: |
-            artifacts/windows/*.exe
-            artifacts/windows/*.yml
-            artifacts/windows/*.blockmap
+            artifacts/**/*.exe
+            artifacts/**/*.dmg
+            artifacts/**/*.zip
+            artifacts/**/*.yml
+            artifacts/**/*.blockmap

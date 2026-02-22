@@ -4,6 +4,28 @@ MapleStory HUD 是一個以 Electron + React + TypeScript 開發的桌面覆蓋�
 
 ## 版本更新
 
+### v0.1.15
+
+- UI/UX（操作便利性）：
+  - `Advanced` 頁重構為「搜尋 + 區塊收合」操作中心，避免一次暴露過多控制項。
+  - 新增「全部展開 / 全部收合」，可快速巡檢全域設定功能。
+- 發版（Windows + macOS）：
+  - `Release` workflow 升級為雙平台 matrix（`windows-latest` + `macos-latest`）。
+  - 同一個 tag 會同時產出 Windows 與 macOS 安裝資產並發布到同一個 Release。
+  - CI 新增 `mac-smoke` 建置關卡，確保 mac 產物持續可打包。
+- 單元測試需求（制度化）：
+  - 新增 `test:unit`、`test:coverage`。
+  - `release:check` 改為強制執行 `test:coverage`。
+  - Vitest coverage 門檻（核心單測模組）：
+    - lines >= 80
+    - functions >= 80
+    - statements >= 80
+    - branches >= 65
+  - 新增測試：
+    - `tests/unit/hotkeys.test.ts`
+    - `tests/unit/update-checker.test.ts`
+    - `tests/unit/parsers-extended.test.ts`
+
 ### v0.1.14
 
 - 全量功能擴充（你要求的 10 項全部落地 MVP）：

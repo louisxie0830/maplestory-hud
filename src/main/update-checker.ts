@@ -29,13 +29,13 @@ export interface UpdateCheckResult {
 const RELEASE_API_URL = 'https://api.github.com/repos/louisxie0830/maplestory-hud/releases/latest'
 const RELEASE_LIST_API_URL = 'https://api.github.com/repos/louisxie0830/maplestory-hud/releases?per_page=15'
 
-function parseSemver(version: string): [number, number, number] {
+export function parseSemver(version: string): [number, number, number] {
   const normalized = version.replace(/^v/i, '')
   const [major, minor, patch] = normalized.split('.').map((n) => parseInt(n, 10) || 0)
   return [major, minor, patch]
 }
 
-function isVersionNewer(latest: string, current: string): boolean {
+export function isVersionNewer(latest: string, current: string): boolean {
   const a = parseSemver(latest)
   const b = parseSemver(current)
   if (a[0] !== b[0]) return a[0] > b[0]

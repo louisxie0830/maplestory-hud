@@ -1,6 +1,6 @@
 {
   "name": "maplestory-hud",
-  "version": "0.1.14",
+  "version": "0.1.15",
   "description": "MapleStory TMS HUD Overlay - 楓之谷即時遊戲資訊顯示",
   "main": "./out/main/index.js",
   "scripts": {
@@ -13,6 +13,8 @@
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json",
     "typecheck": "npm run typecheck:node && npm run typecheck:web",
     "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
     "build:win": "npm run build && electron-builder --win --publish never",
     "build:win:dir": "npm run build && electron-builder --win --dir --publish never",
@@ -37,6 +39,7 @@
     "@types/react-dom": "^18.3.5",
     "@types/uuid": "^10.0.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^4.0.18",
     "electron": "^40.6.0",
     "electron-builder": "^26.8.1",
     "electron-vite": "^4.0.0",

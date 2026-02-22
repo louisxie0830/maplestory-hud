@@ -83,7 +83,7 @@ if (typeof macIcon === 'string') {
 step('Running static quality gates')
 run('npm', ['run', '-s', 'typecheck'])
 run('npm', ['run', '-s', 'lint'])
-run('npm', ['run', '-s', 'test'])
+run('npm', ['run', '-s', 'test:coverage'])
 run('npm', ['run', '-s', 'build'])
 
 step('Done')

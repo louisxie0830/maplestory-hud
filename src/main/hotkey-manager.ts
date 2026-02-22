@@ -6,18 +6,7 @@ import { pauseAll, resumeAll, isRunning } from './capture/capture-scheduler'
 import { getUserStore } from './data/user-data-store'
 import { GAME_WINDOW_NAMES } from '../shared/constants'
 import log from 'electron-log/main'
-
-interface HotkeyConfig {
-  toggleCapture: string
-  resetStats: string
-  toggleLock: string
-  screenshot: string
-}
-
-export interface HotkeyValidationResult {
-  ok: boolean
-  conflicts: string[]
-}
+import { validateHotkeys, type HotkeyConfig } from './hotkey-validator'
 
 const DEFAULT_HOTKEYS: HotkeyConfig = {
   toggleCapture: 'F7',
@@ -129,18 +118,4 @@ export function unregisterHotkeys(): void {
   globalShortcut.unregisterAll()
 }
 
-export function validateHotkeys(config: HotkeyConfig): HotkeyValidationResult {
-  const mapping = new Map<string, string[]>()
-  for (const [name, key] of Object.entries(config)) {
-    const normalized = key.trim().toUpperCase()
-    const list = mapping.get(normalized) ?? []
-    list.push(name)
-    mapping.set(normalized, list)
-  }
-
-  const conflicts = [...mapping.entries()]
-    .filter(([, names]) => names.length > 1)
-    .map(([key, names]) => `${key} -> ${names.join('/')}`)
-
-  return { ok: conflicts.length === 0, conflicts }
-}
+export { validateHotkeys }
