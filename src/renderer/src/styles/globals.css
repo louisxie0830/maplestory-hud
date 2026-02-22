@@ -853,14 +853,15 @@ input, textarea, select { user-select: text; }
 /* ========== Settings Modal ========== */
 .settings-overlay {
   position: fixed; inset: 0;
-  display: flex; align-items: center; justify-content: center;
+  display: flex; align-items: flex-start; justify-content: flex-start;
+  padding: 10px;
   z-index: 10000;
-  background: var(--bg-overlay);
+  background: rgba(5, 10, 22, 0.22);
 }
 
 .settings-modal {
-  width: 540px;
-  max-height: 80vh;
+  width: min(760px, calc(100vw - 20px));
+  max-height: calc(100vh - 20px);
   background: var(--bg-modal);
   border: 1px solid var(--border-frame);
   border-radius: var(--radius);
@@ -908,6 +909,7 @@ input, textarea, select { user-select: text; }
 .settings-content {
   padding: 12px 16px;
   overflow-y: auto;
+  overscroll-behavior: contain;
   flex: 1;
 }
 
@@ -948,11 +950,17 @@ input, textarea, select { user-select: text; }
 }
 
 .settings-row {
-  display: flex; justify-content: space-between; align-items: center;
+  display: flex; justify-content: flex-start; align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 8px;
   padding: 3px 0; font-size: 11px;
 }
 
-.settings-row .label { color: var(--text-secondary); }
+.settings-row .label,
+.settings-row .stat-label {
+  color: var(--text-secondary);
+  min-width: 110px;
+}
 
 .settings-value {
   font-size: 10px; color: var(--color-accent);
@@ -1004,6 +1012,7 @@ input, textarea, select { user-select: text; }
   border-radius: var(--radius-sm);
   cursor: pointer; font-size: 11px; font-weight: 500;
   transition: all 0.15s;
+  white-space: nowrap;
 }
 .settings-btn:hover { background: var(--btn-accent-bg-hover); }
 .settings-btn:disabled { opacity: 0.4; cursor: not-allowed; }
@@ -1038,11 +1047,15 @@ input, textarea, select { user-select: text; }
   color: var(--text-primary);
   padding: 4px 8px; font-size: 11px;
   outline: none; cursor: pointer;
+  min-width: 130px;
+  max-width: 100%;
 }
 .settings-select option { background: var(--bg-hud); color: var(--text-primary); }
 
 .settings-input {
-  width: 100%;
+  flex: 1 1 220px;
+  min-width: 180px;
+  max-width: 100%;
   padding: 4px 8px;
   background: var(--bg-input);
   border: 1px solid var(--border-input);
