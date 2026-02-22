@@ -67,9 +67,9 @@ jobs:
             Select-Object -First 1
           if (-not $exe) { throw "No executable found in dist/win-unpacked" }
           Write-Host "Smoke running: $($exe.FullName)"
-          & $exe.FullName --app-version
-          if ($LASTEXITCODE -ne 0) {
-            throw "Smoke test failed: executable exited with code $LASTEXITCODE"
+          $proc = Start-Process -FilePath $exe.FullName -ArgumentList "--app-version" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) {
+            throw "Smoke test failed: executable exited with code $($proc.ExitCode)"
           }
           Write-Host "Smoke test passed with exit code 0"
 
