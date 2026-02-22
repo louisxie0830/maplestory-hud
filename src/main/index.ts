@@ -130,7 +130,7 @@ function ensureDefaultRegions(): void {
   // Remove legacy/unused regions.
   if ('damage' in regions) {
     delete regions.damage
-    store.delete('captureRegions.damage')
+    store.set('captureRegions', regions)
     log.info('Removed legacy capture region: damage')
   }
 
