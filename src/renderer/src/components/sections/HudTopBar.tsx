@@ -16,16 +16,22 @@ export const HudTopBar: React.FC = () => {
   const isLocked = useSettingsStore((s) => s.isLocked)
   const isCaptureRunning = useSettingsStore((s) => s.isCaptureRunning)
   const lastUpdate = useCharacterStore((s) => s.lastUpdate)
+  const signalSec = lastUpdate ? Math.floor((Date.now() - lastUpdate) / 1000) : Infinity
+  const signalClass = signalSec <= 2 ? 'ok' : signalSec <= 8 ? 'warn' : 'error'
+  const signalText = signalSec <= 2 ? 'OCR 正常' : signalSec <= 8 ? 'OCR 不穩' : 'OCR 中斷'
 
   return (
     <div className="hud-topbar">
       <div className="hud-topbar-title">
         <span className="hud-title-main">Maple HUD</span>
-        <span className="hud-title-sub">TMS Overlay</span>
+        <span className="hud-title-sub">Live Detect Console</span>
       </div>
       <div className="hud-topbar-status">
         <span className={`hud-chip ${isCaptureRunning ? 'ok' : 'warn'}`}>
           {isCaptureRunning ? '擷取中' : '已暫停'}
+        </span>
+        <span className={`hud-chip ${signalClass}`}>
+          {signalText}
         </span>
         <span className={`hud-chip ${isLocked ? '' : 'accent'}`}>
           {isLocked ? '鎖定' : '互動'}
@@ -33,9 +39,10 @@ export const HudTopBar: React.FC = () => {
         <span className="hud-chip subtle">更新 {formatLastSeen(lastUpdate)}</span>
       </div>
       <div className="hud-hotkeys">
-        <span>F7 擷取</span>
-        <span>F8 重置</span>
-        <span>F9 鎖定</span>
+        <span>F7 開始/暫停</span>
+        <span>F8 重置統計</span>
+        <span>F9 鎖定切換</span>
+        <span>F10 擷取畫面</span>
       </div>
     </div>
   )

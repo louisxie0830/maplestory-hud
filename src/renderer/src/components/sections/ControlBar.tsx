@@ -8,6 +8,7 @@ export const ControlBar: React.FC = () => {
   const isCaptureRunning = useSettingsStore((s) => s.isCaptureRunning)
   const toggleCapture = useSettingsStore((s) => s.toggleCapture)
   const openSettings = useSettingsStore((s) => s.openSettings)
+  const openRegionSelector = useSettingsStore((s) => s.openRegionSelector)
 
   const handleToggleLock = useCallback(async () => {
     const newIsLocked = await window.electronAPI?.toggleClickThrough()
@@ -28,8 +29,19 @@ export const ControlBar: React.FC = () => {
     window.electronAPI.trackEvent('settings.opened', { source: 'control_bar' })
   }, [openSettings])
 
+  const handleOpenCaptureTools = useCallback(() => {
+    openSettings('capture')
+    window.electronAPI.trackEvent('settings.opened', { source: 'control_bar', tab: 'capture' })
+  }, [openSettings])
+
   return (
     <div className="hud-control">
+      <button className="hud-ctrl-btn accent" onClick={handleOpenCaptureTools}>
+        選擇視窗/來源
+      </button>
+      <button className="hud-ctrl-btn accent" onClick={openRegionSelector}>
+        框選偵測區域
+      </button>
       <button
         className={`hud-ctrl-btn ${isLocked ? '' : 'active'}`}
         onClick={handleToggleLock}
@@ -43,7 +55,7 @@ export const ControlBar: React.FC = () => {
         {isCaptureRunning ? '擷取中' : '已停止'}
       </button>
       <button className="hud-ctrl-btn" onClick={handleOpenSettings}>
-        設定
+        更多設定
       </button>
       <button className="hud-ctrl-btn" onClick={() => window.electronAPI?.openLogViewer()}>
         日誌

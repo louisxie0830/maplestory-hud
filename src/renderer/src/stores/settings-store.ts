@@ -86,7 +86,7 @@ interface SettingsState {
   loadFullSettings: (settings: Record<string, unknown>) => void
 }
 
-const DEFAULT_HUD: HudPanelLayout = { x: 10, y: 10, width: 260 }
+const DEFAULT_HUD: HudPanelLayout = { x: 10, y: 10, width: 320 }
 
 const DEFAULT_SECTIONS: Record<string, SectionState> = {
   damage: { collapsed: false },
