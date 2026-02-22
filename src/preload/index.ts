@@ -21,6 +21,10 @@ export interface ElectronAPI {
   getSettingsKey: (key: string) => Promise<unknown>
   exportSettings: () => Promise<string | null>
   importSettings: () => Promise<Record<string, unknown> | null>
+  listProfiles: () => Promise<string[]>
+  saveProfile: (name: string) => Promise<boolean>
+  loadProfile: (name: string) => Promise<Record<string, unknown> | null>
+  deleteProfile: (name: string) => Promise<boolean>
 
   /** 擷取全域控制 */
   pauseCapture: () => Promise<void>
@@ -60,6 +64,26 @@ export interface ElectronAPI {
     lastFailureAt: number | null
   }>>
   resetOcrHealth: () => Promise<void>
+  listOcrReplayDatasets: () => Promise<string[]>
+  runOcrReplayDataset: (fileName: string) => Promise<{
+    dataset: string
+    total: number
+    passed: number
+    failed: number
+    accuracy: number
+    failures: Array<{ index: number; regionId: string; text: string; expected: unknown; actual: unknown }>
+  } | null>
+  getCalibrationSuggestions: () => Promise<Array<{
+    regionId: string
+    reason: string
+    region: { x: number; y: number; width: number; height: number; enabled: boolean }
+    ocr: { confidenceThreshold: number; preprocessInvert: boolean; preprocessThreshold: number }
+  }>>
+  applyCalibrationSuggestions: (suggestions: Array<{
+    regionId: string
+    region: { x: number; y: number; width: number; height: number; enabled: boolean }
+    ocr: { confidenceThreshold: number; preprocessInvert: boolean; preprocessThreshold: number }
+  }>) => Promise<boolean>
   calibrateRegion: (regionId: string) => Promise<{
     rawImage: string
     processedImage: string
@@ -101,9 +125,34 @@ export interface ElectronAPI {
     releaseUrl: string
     publishedAt: string
     installerUrl: string | null
+    channel: 'stable' | 'beta'
+    rollbackVersion: string | null
+    rollbackUrl: string | null
   } | null>
+  getUpdateChannel: () => Promise<'stable' | 'beta'>
+  setUpdateChannel: (channel: 'stable' | 'beta') => Promise<'stable' | 'beta'>
+  getRollbackTarget: () => Promise<{ version: string; url: string } | null>
+  openRollbackUrl: () => Promise<boolean>
   exportLatestCrashReport: () => Promise<string | null>
   getDataSourceInfo: () => Promise<{ mode: 'bundled' | 'plugin'; path: string }>
+  getRuntimeHealth: () => Promise<{
+    timestamp: number
+    memoryRssMb: number
+    memoryHeapUsedMb: number
+    cpuPercentApprox: number
+    ocrFpsApprox: number
+    ocrTotalSamples: number
+  }>
+  getRecentEvents: (limit?: number) => Promise<Array<{
+    id: number
+    timestamp: number
+    level: 'info' | 'warn' | 'error'
+    category: string
+    message: string
+    meta?: Record<string, string | number | boolean>
+  }>>
+  clearEvents: () => Promise<void>
+  exportFeedbackReport: (note?: string) => Promise<string | null>
   quitApp: () => void
   openLogViewer: () => void
 
@@ -149,6 +198,10 @@ const api: ElectronAPI = {
   getSettingsKey: (key) => ipcRenderer.invoke('settings:get-key', key),
   exportSettings: () => ipcRenderer.invoke('settings:export'),
   importSettings: () => ipcRenderer.invoke('settings:import'),
+  listProfiles: () => ipcRenderer.invoke('profiles:list'),
+  saveProfile: (name) => ipcRenderer.invoke('profiles:save', name),
+  loadProfile: (name) => ipcRenderer.invoke('profiles:load', name),
+  deleteProfile: (name) => ipcRenderer.invoke('profiles:delete', name),
 
   // Capture global control
   pauseCapture: () => ipcRenderer.invoke('capture:pause-all'),
@@ -189,6 +242,10 @@ const api: ElectronAPI = {
   updateOcrSettings: (settings) => ipcRenderer.invoke('ocr:update-settings', settings),
   getOcrHealth: () => ipcRenderer.invoke('ocr:get-health'),
   resetOcrHealth: () => ipcRenderer.invoke('ocr:reset-health'),
+  listOcrReplayDatasets: () => ipcRenderer.invoke('ocr:replay-list'),
+  runOcrReplayDataset: (fileName) => ipcRenderer.invoke('ocr:replay-run', fileName),
+  getCalibrationSuggestions: () => ipcRenderer.invoke('calibration:suggest'),
+  applyCalibrationSuggestions: (suggestions) => ipcRenderer.invoke('calibration:apply-suggestions', suggestions),
   calibrateRegion: (regionId) => ipcRenderer.invoke('ocr:calibrate', regionId),
 
   // Timers
@@ -228,8 +285,16 @@ const api: ElectronAPI = {
   // App control
   getAppVersion: () => ipcRenderer.invoke('app:get-version'),
   checkForUpdates: () => ipcRenderer.invoke('app:check-updates'),
+  getUpdateChannel: () => ipcRenderer.invoke('app:get-update-channel'),
+  setUpdateChannel: (channel) => ipcRenderer.invoke('app:set-update-channel', channel),
+  getRollbackTarget: () => ipcRenderer.invoke('app:get-rollback-target'),
+  openRollbackUrl: () => ipcRenderer.invoke('app:open-rollback-url'),
   exportLatestCrashReport: () => ipcRenderer.invoke('app:export-latest-crash-report'),
   getDataSourceInfo: () => ipcRenderer.invoke('app:get-data-source'),
+  getRuntimeHealth: () => ipcRenderer.invoke('observability:get-runtime'),
+  getRecentEvents: (limit) => ipcRenderer.invoke('events:get-recent', limit),
+  clearEvents: () => ipcRenderer.invoke('events:clear'),
+  exportFeedbackReport: (note) => ipcRenderer.invoke('feedback:export-report', note),
   quitApp: () => ipcRenderer.send('app:quit'),
   openLogViewer: () => ipcRenderer.send('app:open-log-viewer'),
 

@@ -15,6 +15,9 @@ import { trackTelemetryEvent } from './telemetry'
 import { checkForUpdates } from './update-checker'
 import { getOcrHealthSummary, resetOcrHealthSummary } from './ocr/health-metrics'
 import { validateHotkeys, unregisterHotkeys } from './hotkey-manager'
+import { getRuntimeHealthSnapshot } from './observability'
+import { addAppEvent, clearAppEvents, getRecentAppEvents } from './event-center'
+import { listReplayDatasets, runReplayDataset } from './ocr/replay-runner'
 
 interface SetupCallbacks {
   startCaptureJobs: () => void
@@ -81,8 +84,34 @@ export async function registerIpcHandlers(
     performance: (v) => typeof v === 'object' && v !== null,
     accessibility: (v) => typeof v === 'object' && v !== null,
     locale: (v) => v === 'zh-TW' || v === 'en',
-    dataSource: (v) => typeof v === 'object' && v !== null
+    dataSource: (v) => typeof v === 'object' && v !== null,
+    update: (v) => typeof v === 'object' && v !== null,
+    profiles: (v) => typeof v === 'object' && v !== null
   }
+
+  const HOTKEY_PATTERN = /^(Ctrl\+|Alt\+|Shift\+|CommandOrControl\+){0,3}(F\d{1,2}|[A-Z0-9])$/i
+  const isSafeHotkey = (key: string): boolean => HOTKEY_PATTERN.test(key.trim())
+
+  const buildProfileSnapshot = (): UserStoreSchema['profiles'][string] => ({
+    captureRegions: store.get('captureRegions', {}),
+    captureIntervals: store.get('captureIntervals', {}),
+    ocr: store.get('ocr', {
+      confidenceThreshold: DEFAULT_OCR_CONFIDENCE,
+      preprocessInvert: true,
+      preprocessThreshold: DEFAULT_PREPROCESS_THRESHOLD
+    }),
+    overlay: store.get('overlay', { opacity: 1, isLocked: true, theme: 'dark' }),
+    hotkeys: store.get('hotkeys', {
+      toggleCapture: 'F7',
+      resetStats: 'F8',
+      toggleLock: 'F9',
+      screenshot: 'F10'
+    }),
+    performance: store.get('performance', { mode: 'balanced' }),
+    accessibility: store.get('accessibility', { fontScale: 1, highContrast: false }),
+    locale: store.get('locale', 'zh-TW'),
+    dataSource: store.get('dataSource', { mode: 'bundled', pluginDir: '' })
+  })
 
   ipcMain.handle('settings:update', async (_event, settings: Record<string, unknown>) => {
     if (!settings || typeof settings !== 'object') return store.store
@@ -101,6 +130,7 @@ export async function registerIpcHandlers(
         await loadGameData()
       }
     }
+    addAppEvent('info', 'settings', 'Settings updated')
     return store.store
   })
 
@@ -119,6 +149,7 @@ export async function registerIpcHandlers(
       if (canceled || !filePath) return null
       await writeFile(filePath, JSON.stringify(store.store, null, 2), 'utf-8')
       trackTelemetryEvent('settings.exported')
+      addAppEvent('info', 'settings', 'Settings exported')
       return filePath
     } catch (err) {
       log.error('settings:export failed', err)
@@ -147,11 +178,56 @@ export async function registerIpcHandlers(
       unregisterHotkeys()
       setupCallbacks.registerHotkeys()
       trackTelemetryEvent('settings.imported')
+      addAppEvent('info', 'settings', 'Settings imported')
       return store.store
     } catch (err) {
       log.error('settings:import failed', err)
       return null
     }
+  })
+
+  // --- Profiles ---
+  ipcMain.handle('profiles:list', () => {
+    const profiles = store.get('profiles', {})
+    return Object.keys(profiles).sort()
+  })
+
+  ipcMain.handle('profiles:save', (_event, name: string) => {
+    const normalized = String(name || '').trim()
+    if (!normalized) return false
+    store.set(`profiles.${normalized}`, buildProfileSnapshot())
+    addAppEvent('info', 'profile', `Profile saved: ${normalized}`)
+    return true
+  })
+
+  ipcMain.handle('profiles:load', async (_event, name: string) => {
+    const normalized = String(name || '').trim()
+    const profile = store.get(`profiles.${normalized}`) as UserStoreSchema['profiles'][string] | undefined
+    if (!profile) return null
+    store.set('captureRegions', profile.captureRegions)
+    store.set('captureIntervals', profile.captureIntervals)
+    store.set('ocr', profile.ocr)
+    store.set('overlay', profile.overlay)
+    store.set('hotkeys', profile.hotkeys)
+    store.set('performance', profile.performance)
+    store.set('accessibility', profile.accessibility)
+    store.set('locale', profile.locale)
+    store.set('dataSource', profile.dataSource)
+    await loadGameData()
+    unregisterHotkeys()
+    setupCallbacks.registerHotkeys()
+    addAppEvent('info', 'profile', `Profile loaded: ${normalized}`)
+    return store.store
+  })
+
+  ipcMain.handle('profiles:delete', (_event, name: string) => {
+    const normalized = String(name || '').trim()
+    if (!normalized) return false
+    const profiles = store.get('profiles', {})
+    delete profiles[normalized]
+    store.set('profiles', profiles)
+    addAppEvent('warn', 'profile', `Profile deleted: ${normalized}`)
+    return true
   })
 
   // --- Capture global control ---
@@ -290,6 +366,67 @@ export async function registerIpcHandlers(
     resetOcrHealthSummary()
   })
 
+  ipcMain.handle('ocr:replay-list', async () => {
+    return await listReplayDatasets()
+  })
+
+  ipcMain.handle('ocr:replay-run', async (_event, fileName: string) => {
+    const result = await runReplayDataset(fileName)
+    if (result) {
+      addAppEvent('info', 'ocr', `Replay run: ${result.dataset}`, {
+        accuracy: Math.round(result.accuracy * 100)
+      })
+    }
+    return result
+  })
+
+  ipcMain.handle('calibration:suggest', () => {
+    const health = getOcrHealthSummary()
+    const regions = store.get('captureRegions', {})
+    const ocr = store.get('ocr', {
+      confidenceThreshold: DEFAULT_OCR_CONFIDENCE,
+      preprocessInvert: true,
+      preprocessThreshold: DEFAULT_PREPROCESS_THRESHOLD
+    })
+
+    const suggestions = health
+      .filter((row) => row.total >= 20 && row.successRate < 0.7)
+      .map((row) => {
+        const base = regions[row.regionId]
+        if (!base) return null
+        return {
+          regionId: row.regionId,
+          reason: `success ${Math.round(row.successRate * 100)}%`,
+          region: {
+            ...base,
+            width: Math.min(10000, Math.round(base.width * 1.08)),
+            height: Math.min(10000, Math.round(base.height * 1.08))
+          },
+          ocr: {
+            ...ocr,
+            confidenceThreshold: Math.max(0.45, Number(ocr.confidenceThreshold) - 0.05)
+          }
+        }
+      })
+      .filter((s): s is NonNullable<typeof s> => s !== null)
+
+    return suggestions
+  })
+
+  ipcMain.handle('calibration:apply-suggestions', (_event, suggestions: Array<{
+    regionId: string
+    region: { x: number; y: number; width: number; height: number; enabled: boolean }
+    ocr: { confidenceThreshold: number; preprocessInvert: boolean; preprocessThreshold: number }
+  }>) => {
+    for (const suggestion of suggestions) {
+      if (!validateRegion(suggestion.region)) continue
+      store.set(`captureRegions.${suggestion.regionId}`, suggestion.region)
+      store.set('ocr', suggestion.ocr)
+    }
+    addAppEvent('info', 'ocr', 'Calibration suggestions applied')
+    return true
+  })
+
   ipcMain.handle('ocr:calibrate', async (_event, regionId: string) => {
     const regions = store.get('captureRegions', {}) as Record<
       string,
@@ -345,6 +482,9 @@ export async function registerIpcHandlers(
     toggleLock: string
     screenshot: string
   }) => {
+    if (!isSafeHotkey(hotkeys.toggleCapture) || !isSafeHotkey(hotkeys.resetStats) || !isSafeHotkey(hotkeys.toggleLock) || !isSafeHotkey(hotkeys.screenshot)) {
+      return { ok: false, conflicts: ['Invalid hotkey format'] }
+    }
     return validateHotkeys(hotkeys)
   })
 
@@ -354,11 +494,15 @@ export async function registerIpcHandlers(
     toggleLock: string
     screenshot: string
   }) => {
+    if (!isSafeHotkey(hotkeys.toggleCapture) || !isSafeHotkey(hotkeys.resetStats) || !isSafeHotkey(hotkeys.toggleLock) || !isSafeHotkey(hotkeys.screenshot)) {
+      return { ok: false, conflicts: ['Invalid hotkey format'] }
+    }
     const validated = validateHotkeys(hotkeys)
     if (!validated.ok) return validated
     store.set('hotkeys', hotkeys)
     unregisterHotkeys()
     setupCallbacks.registerHotkeys()
+    addAppEvent('info', 'hotkey', 'Hotkeys updated')
     return validated
   })
 
@@ -492,6 +636,8 @@ export async function registerIpcHandlers(
           dataSource: store.get('dataSource', { mode: 'bundled', pluginDir: '' })
         },
         ocrHealth: getOcrHealthSummary(),
+        runtime: getRuntimeHealthSnapshot(),
+        events: getRecentAppEvents(100),
         logs: {
           path: log.transports.file.getFile().path
         }
@@ -514,17 +660,94 @@ export async function registerIpcHandlers(
 
   ipcMain.handle('app:check-updates', async () => {
     try {
-      const result = await checkForUpdates()
+      const channel = store.get('update.channel', 'stable') as 'stable' | 'beta'
+      const result = await checkForUpdates(channel)
       trackTelemetryEvent('update.checked', { hasUpdate: result.hasUpdate })
+      addAppEvent('info', 'update', `Checked updates on ${channel}`, { hasUpdate: result.hasUpdate })
       return result
     } catch (err) {
       log.warn('app:check-updates failed', err)
+      addAppEvent('error', 'update', 'Update check failed')
       return null
     }
   })
 
+  ipcMain.handle('app:get-update-channel', () => {
+    return store.get('update.channel', 'stable')
+  })
+
+  ipcMain.handle('app:set-update-channel', (_event, channel: 'stable' | 'beta') => {
+    const safe = channel === 'beta' ? 'beta' : 'stable'
+    store.set('update.channel', safe)
+    addAppEvent('info', 'update', `Update channel set: ${safe}`)
+    return safe
+  })
+
+  ipcMain.handle('app:get-rollback-target', async () => {
+    const channel = store.get('update.channel', 'stable') as 'stable' | 'beta'
+    const result = await checkForUpdates(channel)
+    if (!result.rollbackVersion || !result.rollbackUrl) return null
+    return {
+      version: result.rollbackVersion,
+      url: result.rollbackUrl
+    }
+  })
+
+  ipcMain.handle('app:open-rollback-url', async () => {
+    const channel = store.get('update.channel', 'stable') as 'stable' | 'beta'
+    const result = await checkForUpdates(channel)
+    if (!result.rollbackUrl) return false
+    await shell.openExternal(result.rollbackUrl)
+    return true
+  })
+
   ipcMain.handle('app:get-data-source', () => {
     return getCurrentDataSourceInfo()
+  })
+
+  ipcMain.handle('observability:get-runtime', () => {
+    return getRuntimeHealthSnapshot()
+  })
+
+  ipcMain.handle('events:get-recent', (_event, limit: number = 50) => {
+    return getRecentAppEvents(limit)
+  })
+
+  ipcMain.handle('events:clear', () => {
+    clearAppEvents()
+  })
+
+  ipcMain.handle('feedback:export-report', async (_event, note: string = '') => {
+    try {
+      const now = new Date()
+      const stamp = now.toISOString().replace(/[:.]/g, '-')
+      const defaultName = `maplestory-hud-feedback-${stamp}.json`
+      const { canceled, filePath } = await dialog.showSaveDialog(overlayWindow, {
+        defaultPath: defaultName,
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+      })
+      if (canceled || !filePath) return null
+
+      const payload = {
+        generatedAt: now.toISOString(),
+        note,
+        app: {
+          version: app.getVersion(),
+          platform: process.platform,
+          arch: process.arch
+        },
+        events: getRecentAppEvents(100),
+        runtime: getRuntimeHealthSnapshot(),
+        ocrHealth: getOcrHealthSummary(),
+        settings: buildProfileSnapshot()
+      }
+      await writeFile(filePath, JSON.stringify(payload, null, 2), 'utf-8')
+      addAppEvent('info', 'feedback', 'Feedback report exported')
+      return filePath
+    } catch (err) {
+      log.warn('feedback:export-report failed', err)
+      return null
+    }
   })
 
   ipcMain.handle('app:export-latest-crash-report', async () => {
@@ -582,6 +805,7 @@ export async function registerIpcHandlers(
     setupCallbacks.startCaptureJobs()
     setupCallbacks.registerHotkeys()
     trackTelemetryEvent('setup.completed')
+    addAppEvent('info', 'setup', 'Setup wizard completed')
     log.info('Setup wizard completed')
     return true
   })
@@ -589,6 +813,7 @@ export async function registerIpcHandlers(
   ipcMain.handle('setup:reset', () => {
     store.set('_setupCompleted', false)
     trackTelemetryEvent('wizard.reset')
+    addAppEvent('warn', 'setup', 'Setup wizard reset requested')
     return true
   })
 

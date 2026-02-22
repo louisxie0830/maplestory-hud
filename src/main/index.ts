@@ -15,6 +15,7 @@ import { DEFAULT_CAPTURE_INTERVAL_MS } from '../shared/constants'
 import log from 'electron-log/main'
 import { applyAppIcon } from './utils/icon'
 import { checkForUpdates } from './update-checker'
+import { addAppEvent } from './event-center'
 
 // Windows needs hardware acceleration disabled for transparent windows
 if (process.platform === 'win32') {
@@ -23,6 +24,7 @@ if (process.platform === 'win32') {
 
 log.initialize()
 log.info('MapleStory HUD starting...')
+addAppEvent('info', 'app', 'MapleStory HUD starting')
 
 // CI/diagnostics switch: print app version and exit without opening windows
 if (process.argv.includes('--app-version')) {
@@ -114,10 +116,12 @@ app.whenReady().then(async () => {
     .then((update) => {
       if (update.hasUpdate) {
         log.info(`Update available: v${update.latestVersion}`)
+        addAppEvent('info', 'update', `Update available: v${update.latestVersion}`)
       }
     })
     .catch((err) => {
       log.warn('Startup update check failed:', err)
+      addAppEvent('warn', 'update', 'Startup update check failed')
     })
 })
 

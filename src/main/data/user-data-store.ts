@@ -57,6 +57,20 @@ export interface UserStoreSchema {
     mode: 'bundled' | 'plugin'
     pluginDir: string
   }
+  update: {
+    channel: 'stable' | 'beta'
+  }
+  profiles: Record<string, {
+    captureRegions: UserStoreSchema['captureRegions']
+    captureIntervals: UserStoreSchema['captureIntervals']
+    ocr: UserStoreSchema['ocr']
+    overlay: UserStoreSchema['overlay']
+    hotkeys: UserStoreSchema['hotkeys']
+    performance: UserStoreSchema['performance']
+    accessibility: UserStoreSchema['accessibility']
+    locale: UserStoreSchema['locale']
+    dataSource: UserStoreSchema['dataSource']
+  }>
   _setupCompleted: boolean
 }
 
@@ -105,6 +119,10 @@ export function getUserStore(): Store<UserStoreSchema> {
           mode: 'bundled',
           pluginDir: ''
         },
+        update: {
+          channel: 'stable'
+        },
+        profiles: {},
         _setupCompleted: false
       }
     })

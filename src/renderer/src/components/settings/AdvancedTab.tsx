@@ -29,6 +29,15 @@ export const AdvancedTab: React.FC = () => {
   const [pluginDir, setPluginDir] = useState('')
   const [ocrHealth, setOcrHealth] = useState<OcrHealthRow[]>([])
   const [updateMessage, setUpdateMessage] = useState('')
+  const [profileName, setProfileName] = useState('default')
+  const [profiles, setProfiles] = useState<string[]>([])
+  const [replayFiles, setReplayFiles] = useState<string[]>([])
+  const [selectedReplay, setSelectedReplay] = useState('')
+  const [replayResult, setReplayResult] = useState<string>('')
+  const [updateChannel, setUpdateChannel] = useState<'stable' | 'beta'>('stable')
+  const [runtimeLine, setRuntimeLine] = useState('')
+  const [eventRows, setEventRows] = useState<Array<{ id: number; message: string; level: string; category: string }>>([])
+  const [feedbackNote, setFeedbackNote] = useState('')
 
   const ocrHealthText = useMemo(() => {
     if (ocrHealth.length === 0) return '尚無 OCR 統計資料'
@@ -65,6 +74,32 @@ export const AdvancedTab: React.FC = () => {
     })
   }, [dataSourceMode, pluginDir])
 
+  const refreshProfiles = useCallback(async () => {
+    const names = await window.electronAPI.listProfiles()
+    setProfiles(names)
+  }, [])
+
+  const refreshReplayFiles = useCallback(async () => {
+    const files = await window.electronAPI.listOcrReplayDatasets()
+    setReplayFiles(files)
+    if (files.length > 0) setSelectedReplay((prev) => prev || files[0])
+  }, [])
+
+  const refreshRuntime = useCallback(async () => {
+    const rt = await window.electronAPI.getRuntimeHealth()
+    setRuntimeLine(`CPU ${rt.cpuPercentApprox}% / RSS ${rt.memoryRssMb}MB / OCR ${rt.ocrFpsApprox} fps`)
+  }, [])
+
+  const refreshEvents = useCallback(async () => {
+    const rows = await window.electronAPI.getRecentEvents(20)
+    setEventRows(rows.map((r) => ({
+      id: r.id,
+      message: r.message,
+      level: r.level,
+      category: r.category
+    })))
+  }, [])
+
   const importSettings = useCallback(async () => {
     const imported = await window.electronAPI.importSettings()
     if (imported) {
@@ -78,12 +113,17 @@ export const AdvancedTab: React.FC = () => {
 
   useEffect(() => {
     void refreshOcrHealth()
+    void refreshProfiles()
+    void refreshReplayFiles()
+    void refreshRuntime()
+    void refreshEvents()
+    void window.electronAPI.getUpdateChannel().then((ch) => setUpdateChannel(ch))
     void window.electronAPI.getSettingsKey('dataSource').then((raw) => {
       const v = (raw as { mode?: 'bundled' | 'plugin'; pluginDir?: string }) || {}
       setDataSourceMode(v.mode === 'plugin' ? 'plugin' : 'bundled')
       setPluginDir(v.pluginDir ?? '')
     })
-  }, [refreshOcrHealth])
+  }, [refreshOcrHealth, refreshProfiles, refreshReplayFiles, refreshRuntime, refreshEvents])
 
   return (
     <div>
@@ -91,6 +131,15 @@ export const AdvancedTab: React.FC = () => {
         <div className="settings-section-title">更新與維運</div>
         <div className="settings-row">
           <button className="settings-btn" onClick={handleCheckUpdate}>檢查更新</button>
+          <select className="settings-select" value={updateChannel} onChange={async (e) => {
+            const channel = e.target.value as 'stable' | 'beta'
+            setUpdateChannel(channel)
+            await window.electronAPI.setUpdateChannel(channel)
+          }}>
+            <option value="stable">穩定版</option>
+            <option value="beta">測試版</option>
+          </select>
+          <button className="settings-btn" onClick={() => window.electronAPI.openRollbackUrl()}>回滾到上一版</button>
           <button className="settings-btn" onClick={() => window.electronAPI.exportDiagnostics()}>匯出診斷</button>
           <button className="settings-btn" onClick={() => window.electronAPI.exportLatestCrashReport()}>匯出最近 Crash</button>
         </div>
@@ -107,6 +156,20 @@ export const AdvancedTab: React.FC = () => {
             window.location.reload()
           }}>重新執行設定精靈</button>
         </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">Profile 系統</div>
+        <div className="settings-row">
+          <input className="settings-input" value={profileName} onChange={(e) => setProfileName(e.target.value)} />
+          <button className="settings-btn" onClick={async () => { await window.electronAPI.saveProfile(profileName); await refreshProfiles() }}>儲存</button>
+          <button className="settings-btn" onClick={async () => {
+            const loaded = await window.electronAPI.loadProfile(profileName)
+            if (loaded) loadFullSettings(loaded)
+          }}>載入</button>
+          <button className="settings-btn danger" onClick={async () => { await window.electronAPI.deleteProfile(profileName); await refreshProfiles() }}>刪除</button>
+        </div>
+        <div className="about-note">現有：{profiles.join(', ') || '無'}</div>
       </div>
 
       <div className="settings-section">
@@ -211,6 +274,71 @@ export const AdvancedTab: React.FC = () => {
             </span>
           </div>
         ))}
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">OCR 回放測試集</div>
+        <div className="settings-row">
+          <select className="settings-select" value={selectedReplay} onChange={(e) => setSelectedReplay(e.target.value)}>
+            {replayFiles.map((f) => <option key={f} value={f}>{f}</option>)}
+          </select>
+          <button className="settings-btn" onClick={async () => {
+            const file = selectedReplay
+            if (!file) return
+            const res = await window.electronAPI.runOcrReplayDataset(file)
+            if (!res) return
+            setReplayResult(`${res.dataset}: ${res.passed}/${res.total} (${Math.round(res.accuracy * 100)}%)`)
+          }}>執行回放</button>
+          <button className="settings-btn" onClick={refreshReplayFiles}>重整清單</button>
+        </div>
+        {replayResult && <div className="about-note">{replayResult}</div>}
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">校準自動建議</div>
+        <div className="settings-row">
+          <button className="settings-btn" onClick={async () => {
+            const suggestions = await window.electronAPI.getCalibrationSuggestions()
+            if (suggestions.length === 0) {
+              setReplayResult('目前沒有可用建議')
+              return
+            }
+            await window.electronAPI.applyCalibrationSuggestions(suggestions)
+            const settings = await window.electronAPI.getSettings()
+            loadFullSettings(settings)
+            setReplayResult(`已套用 ${suggestions.length} 個校準建議`)
+          }}>一鍵套用建議</button>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">觀測面板 v2</div>
+        <div className="settings-row">
+          <button className="settings-btn" onClick={refreshRuntime}>刷新 runtime</button>
+          <span className="settings-value">{runtimeLine}</span>
+        </div>
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">事件中心</div>
+        <div className="settings-row">
+          <button className="settings-btn" onClick={refreshEvents}>刷新事件</button>
+          <button className="settings-btn danger" onClick={async () => { await window.electronAPI.clearEvents(); await refreshEvents() }}>清空事件</button>
+        </div>
+        {eventRows.map((row) => (
+          <div key={row.id} className="settings-row">
+            <span className="stat-label">[{row.level}] {row.category}</span>
+            <span className="settings-value">{row.message}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="settings-section">
+        <div className="settings-section-title">回饋閉環</div>
+        <div className="settings-row">
+          <input className="settings-input" placeholder="回報描述（可選）" value={feedbackNote} onChange={(e) => setFeedbackNote(e.target.value)} />
+          <button className="settings-btn" onClick={() => window.electronAPI.exportFeedbackReport(feedbackNote)}>匯出回饋包</button>
+        </div>
       </div>
     </div>
   )

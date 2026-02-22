@@ -1,0 +1,11 @@
+{
+  "name": "basic-v1",
+  "version": 1,
+  "cases": [
+    { "regionId": "hp", "text": "12,345 / 67,890", "expected": [12345, 67890] },
+    { "regionId": "mp", "text": "1/100", "expected": [1, 100] },
+    { "regionId": "exp", "text": "67.42%", "expected": 67.42 },
+    { "regionId": "meso", "text": "Meso 12,345,678", "expected": 12345678 },
+    { "regionId": "damage", "text": "12345 67890", "expected": [12345, 67890] }
+  ]
+}

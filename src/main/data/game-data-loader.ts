@@ -10,6 +10,17 @@ let monsters: Record<number, MonsterData> = {}
 let bosses: Record<string, BossData> = {}
 let trainingSpots: TrainingSpotData[] = []
 let trainingSpotsByMapId: Record<number, TrainingSpotData[]> = {}
+interface PluginManifest {
+  schemaVersion: 1
+  name: string
+  version: string
+  files: {
+    maps: string
+    monsters: string
+    bosses: string
+    trainingSpots: string
+  }
+}
 
 function getDataPath(): string {
   const source = getUserStore().get('dataSource', { mode: 'bundled', pluginDir: '' })
@@ -46,13 +57,42 @@ async function loadJsonFile<T>(filename: string, fallback: T): Promise<T> {
   }
 }
 
+async function loadPluginManifest(basePath: string): Promise<PluginManifest | null> {
+  try {
+    const raw = await readFile(join(basePath, 'manifest.json'), 'utf-8')
+    const manifest = JSON.parse(raw) as PluginManifest
+    if (
+      manifest.schemaVersion !== 1 ||
+      !manifest.files ||
+      !manifest.files.maps ||
+      !manifest.files.monsters ||
+      !manifest.files.bosses ||
+      !manifest.files.trainingSpots
+    ) {
+      return null
+    }
+    return manifest
+  } catch {
+    return null
+  }
+}
+
 /** 載入所有遊戲資料（地圖、怪物、Boss、練功點），並建立索引 */
 export async function loadGameData(): Promise<void> {
+  const source = getUserStore().get('dataSource', { mode: 'bundled', pluginDir: '' })
+  const basePath = getDataPath()
+  const manifest = source.mode === 'plugin' ? await loadPluginManifest(basePath) : null
+
+  const mapsFile = manifest?.files.maps ?? 'maps.json'
+  const monstersFile = manifest?.files.monsters ?? 'monsters.json'
+  const bossesFile = manifest?.files.bosses ?? 'bosses.json'
+  const spotsFile = manifest?.files.trainingSpots ?? 'training-spots.json'
+
   const [mapsData, monstersData, bossesData, spotsData] = await Promise.all([
-    loadJsonFile<Record<number, MapData>>('maps.json', {}),
-    loadJsonFile<Record<number, MonsterData>>('monsters.json', {}),
-    loadJsonFile<Record<string, BossData>>('bosses.json', {}),
-    loadJsonFile<TrainingSpotData[]>('training-spots.json', [])
+    loadJsonFile<Record<number, MapData>>(mapsFile, {}),
+    loadJsonFile<Record<number, MonsterData>>(monstersFile, {}),
+    loadJsonFile<Record<string, BossData>>(bossesFile, {}),
+    loadJsonFile<TrainingSpotData[]>(spotsFile, [])
   ])
 
   maps = mapsData
@@ -82,7 +122,8 @@ export async function loadGameData(): Promise<void> {
     `Game data loaded: ${Object.keys(maps).length} maps, ` +
       `${Object.keys(monsters).length} monsters, ` +
       `${Object.keys(bosses).length} bosses, ` +
-      `${trainingSpots.length} training spots, source=${getDataPath()}`
+      `${trainingSpots.length} training spots, source=${getDataPath()}, ` +
+      `manifest=${manifest ? `${manifest.name}@${manifest.version}` : 'built-in'}`
   )
 }
 

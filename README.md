@@ -4,6 +4,22 @@ MapleStory HUD 是一個以 Electron + React + TypeScript 開發的桌面覆蓋�
 
 ## 版本更新
 
+### v0.1.14
+
+- 全量功能擴充（你要求的 10 項全部落地 MVP）：
+  - `Profile 系統`：新增 profile 儲存/載入/刪除，支援一鍵切換整套 HUD 設定。
+  - `OCR 回放測試集`：新增 replay dataset runner（`data/ocr-replay/*.json`）與測試。
+  - `校準自動建議`：依 OCR 健康指標自動產生區域與門檻建議，可一鍵套用。
+  - `更新策略控制`：新增 `stable/beta` channel、上一版 rollback 目標與開啟頁面。
+  - `觀測面板 v2`：新增 runtime snapshot（CPU/RSS/OCR FPS）與前端顯示。
+  - `事件中心`：新增 app 事件緩衝（capture/update/setup/profile 等）可查詢/清空。
+  - `安全強化`：新增 hotkey 格式驗證、IPC 白名單鍵位檢查、設定匯入過濾。
+  - `QA 自動化擴充`：新增 OCR replay 單元測試（`tests/unit/ocr-replay.test.ts`）。
+  - `插件規格 v1`：新增 plugin `manifest.json` 驗證與 data source 載入支持。
+  - `回饋閉環`：新增 feedback report 匯出（附 events/runtime/ocr health/settings）。
+- 其他：
+  - 預載 API 與進階設定頁同步擴充，形成單一操作中樞。
+
 ### v0.1.13
 
 - Windows 安裝權限修正：

@@ -3,6 +3,7 @@ import { captureRegion, CaptureRegion, isGameWindowVisible } from './screen-capt
 import { runOcrPipeline } from '../ocr/ocr-pipeline'
 import { getUserStore } from '../data/user-data-store'
 import { recordOcrAttempt } from '../ocr/health-metrics'
+import { addAppEvent } from '../event-center'
 import log from 'electron-log/main'
 
 interface CaptureJob {
@@ -159,6 +160,7 @@ function triggerAutoPause(): void {
   running = false
   stopTick()
   log.warn('Game window not detected — capture auto-paused')
+  addAppEvent('warn', 'capture', 'Game window not detected; capture auto-paused')
 
   try {
     overlayWindow?.webContents.send('capture:auto-paused')
@@ -184,6 +186,7 @@ function startRecoveryCheck(): void {
       }
       if (jobs.size > 0) scheduleTick()
       log.info('Game window detected — capture auto-resumed')
+      addAppEvent('info', 'capture', 'Game window detected; capture auto-resumed')
 
       try {
         overlayWindow?.webContents.send('capture:auto-resumed')
