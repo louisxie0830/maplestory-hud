@@ -1,6 +1,6 @@
 {
   "name": "maplestory-hud",
-  "version": "0.1.12",
+  "version": "0.1.13",
   "description": "MapleStory TMS HUD Overlay - 楓之谷即時遊戲資訊顯示",
   "main": "./out/main/index.js",
   "scripts": {
@@ -71,7 +71,8 @@
     ],
     "win": {
       "target": [
-        "nsis"
+        "nsis",
+        "portable"
       ],
       "icon": "resources/icon.ico",
       "signAndEditExecutable": true,
@@ -79,6 +80,8 @@
     },
     "nsis": {
       "oneClick": false,
+      "perMachine": false,
+      "allowElevation": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true

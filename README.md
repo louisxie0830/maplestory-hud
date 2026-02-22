@@ -4,6 +4,13 @@ MapleStory HUD 是一個以 Electron + React + TypeScript 開發的桌面覆蓋�
 
 ## 版本更新
 
+### v0.1.13
+
+- Windows 安裝權限修正：
+  - NSIS 明確使用 `perMachine: false`（使用者層級安裝）。
+  - 關閉 `allowElevation`，避免安裝流程要求管理員權限。
+  - Windows 產物新增 `portable`，可免安裝直接執行，繞過安裝權限問題。
+
 ### v0.1.12
 
 - 全面功能升級（10 項）：
