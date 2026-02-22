@@ -4,6 +4,12 @@ MapleStory HUD 是一個以 Electron + React + TypeScript 開發的桌面覆蓋�
 
 ## 版本更新
 
+### v0.1.19
+
+- 發版流程修正（macOS）：
+  - `build:mac` 改為 `electron-builder --mac --publish never`，避免在 tag workflow 進入隱式 publish。
+  - 修正 `GitHub Personal Access Token is not set` 導致的 mac build 失敗（打包與發布分離）。
+
 ### v0.1.18
 
 - 首次設定流程改版：
