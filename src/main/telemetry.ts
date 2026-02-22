@@ -10,6 +10,10 @@ type TelemetryEventName =
   | 'stats.reset'
   | 'screenshot.taken'
   | 'diagnostics.exported'
+  | 'settings.imported'
+  | 'settings.exported'
+  | 'wizard.reset'
+  | 'update.checked'
 
 interface TelemetryEvent {
   name: TelemetryEventName
@@ -25,7 +29,11 @@ const ALLOWED_EVENTS = new Set<TelemetryEventName>([
   'capture.auto_resumed',
   'stats.reset',
   'screenshot.taken',
-  'diagnostics.exported'
+  'diagnostics.exported',
+  'settings.imported',
+  'settings.exported',
+  'wizard.reset',
+  'update.checked'
 ])
 
 function sanitizeProps(

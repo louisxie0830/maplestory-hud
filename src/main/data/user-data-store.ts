@@ -2,7 +2,7 @@ import Store from 'electron-store'
 import { CAPTURE_INTERVALS } from '../capture/region-config'
 import { DEFAULT_OCR_CONFIDENCE, DEFAULT_PREPROCESS_THRESHOLD, DEFAULT_OVERLAY_OPACITY } from '../../shared/constants'
 
-interface UserStoreSchema {
+export interface UserStoreSchema {
   captureRegions: Record<string, {
     x: number
     y: number
@@ -45,6 +45,18 @@ interface UserStoreSchema {
     toggleLock: string
     screenshot: string
   }
+  performance: {
+    mode: 'balanced' | 'performance' | 'power-saver'
+  }
+  accessibility: {
+    fontScale: number
+    highContrast: boolean
+  }
+  locale: 'zh-TW' | 'en'
+  dataSource: {
+    mode: 'bundled' | 'plugin'
+    pluginDir: string
+  }
   _setupCompleted: boolean
 }
 
@@ -80,6 +92,18 @@ export function getUserStore(): Store<UserStoreSchema> {
           resetStats: 'F8',
           toggleLock: 'F9',
           screenshot: 'F10'
+        },
+        performance: {
+          mode: 'balanced'
+        },
+        accessibility: {
+          fontScale: 1,
+          highContrast: false
+        },
+        locale: 'zh-TW',
+        dataSource: {
+          mode: 'bundled',
+          pluginDir: ''
         },
         _setupCompleted: false
       }

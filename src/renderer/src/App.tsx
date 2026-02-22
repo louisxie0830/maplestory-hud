@@ -44,11 +44,22 @@ const HudApp: React.FC = () => {
   const isRegionSelectorOpen = useSettingsStore((s) => s.isRegionSelectorOpen)
   const isCaptureRunning = useSettingsStore((s) => s.isCaptureRunning)
   const theme = useSettingsStore((s) => s.theme)
+  const accessibility = useSettingsStore((s) => s.accessibility)
+  const locale = useSettingsStore((s) => s.locale)
 
   // Sync theme to DOM — single source of truth
   useEffect(() => {
     document.documentElement.dataset.theme = theme
   }, [theme])
+
+  useEffect(() => {
+    document.documentElement.style.setProperty('--ui-font-scale', String(accessibility.fontScale))
+    document.documentElement.classList.toggle('high-contrast', accessibility.highContrast)
+  }, [accessibility.fontScale, accessibility.highContrast])
+
+  useEffect(() => {
+    document.documentElement.lang = locale === 'en' ? 'en' : 'zh-Hant'
+  }, [locale])
 
   // Disable passthrough when modal/selector is open; restore only if mouse not on HUD
   useEffect(() => {

@@ -87,6 +87,7 @@
   --status-error-border:  #c37066;
   --status-detect-bg:     #2b4c8d;
   --status-detect-border: #c19b5b;
+  --ui-font-scale: 1;
 }
 
 /* --- 淺色主題 --- */
@@ -156,8 +157,15 @@ html, body, #root {
   font-family: 'Trebuchet MS', 'Segoe UI', 'Microsoft JhengHei', 'Noto Sans TC', sans-serif;
   color: var(--text-primary);
   user-select: none;
-  font-size: 11px;
+  font-size: calc(11px * var(--ui-font-scale));
   -webkit-font-smoothing: antialiased;
+}
+
+:root.high-contrast {
+  --text-primary: #ffffff;
+  --text-secondary: #ffe29a;
+  --border-frame: #ffe29a;
+  --border-input: #ffd56e;
 }
 
 /* ========== HUD Panel ========== */
@@ -974,6 +982,10 @@ input, textarea, select { user-select: text; }
 }
 .settings-btn:hover { background: var(--btn-accent-bg-hover); }
 .settings-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.settings-btn.danger {
+  border-color: var(--btn-error-border);
+  color: var(--color-error);
+}
 
 .settings-theme-btn {
   flex: 1;
@@ -1003,6 +1015,16 @@ input, textarea, select { user-select: text; }
   outline: none; cursor: pointer;
 }
 .settings-select option { background: var(--bg-hud); color: var(--text-primary); }
+
+.settings-input {
+  width: 100%;
+  padding: 4px 8px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-input);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-size: 11px;
+}
 
 /* Legacy input classes used by settings tabs */
 .input-field {

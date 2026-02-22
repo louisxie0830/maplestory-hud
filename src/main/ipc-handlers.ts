@@ -1,9 +1,10 @@
 import { ipcMain, BrowserWindow, screen, shell, dialog, app } from 'electron'
-import { writeFile, open, stat } from 'fs/promises'
+import { writeFile, open, stat, readFile, readdir, copyFile, mkdir } from 'fs/promises'
+import { join } from 'path'
 import { toggleClickThrough, getClickThroughState } from './overlay-window'
 import { showLogWindow } from './log-window'
-import { getUserStore } from './data/user-data-store'
-import { loadGameData, getMapInfo, searchMaps, getMonsterInfo, getMonsterInfoBatch, getTrainingSpots, getTrainingSpotsByMapId } from './data/game-data-loader'
+import { getUserStore, type UserStoreSchema } from './data/user-data-store'
+import { loadGameData, getMapInfo, searchMaps, getMonsterInfo, getMonsterInfoBatch, getTrainingSpots, getTrainingSpotsByMapId, getCurrentDataSourceInfo } from './data/game-data-loader'
 import { captureRegion, isGameWindowVisible } from './capture/screen-capture'
 import { addCaptureJob, removeCaptureJob, pauseAll, resumeAll, isRunning } from './capture/capture-scheduler'
 import { preprocessImage, getPreset } from './ocr/preprocessor'
@@ -11,6 +12,9 @@ import { recognizeImage } from './ocr/ocr-engine'
 import { DEFAULT_OCR_CONFIDENCE, DEFAULT_PREPROCESS_THRESHOLD, DEFAULT_CAPTURE_INTERVAL_MS } from '../shared/constants'
 import log from 'electron-log/main'
 import { trackTelemetryEvent } from './telemetry'
+import { checkForUpdates } from './update-checker'
+import { getOcrHealthSummary, resetOcrHealthSummary } from './ocr/health-metrics'
+import { validateHotkeys, unregisterHotkeys } from './hotkey-manager'
 
 interface SetupCallbacks {
   startCaptureJobs: () => void
@@ -73,10 +77,14 @@ export async function registerIpcHandlers(
     captureIntervals: (v) => typeof v === 'object' && v !== null,
     ocr: (v) => typeof v === 'object' && v !== null,
     timers: (v) => Array.isArray(v),
-    hotkeys: (v) => typeof v === 'object' && v !== null
+    hotkeys: (v) => typeof v === 'object' && v !== null,
+    performance: (v) => typeof v === 'object' && v !== null,
+    accessibility: (v) => typeof v === 'object' && v !== null,
+    locale: (v) => v === 'zh-TW' || v === 'en',
+    dataSource: (v) => typeof v === 'object' && v !== null
   }
 
-  ipcMain.handle('settings:update', (_event, settings: Record<string, unknown>) => {
+  ipcMain.handle('settings:update', async (_event, settings: Record<string, unknown>) => {
     if (!settings || typeof settings !== 'object') return store.store
     for (const [key, value] of Object.entries(settings)) {
       const validate = SETTINGS_VALIDATORS[key]
@@ -89,12 +97,61 @@ export async function registerIpcHandlers(
         continue
       }
       store.set(key, value)
+      if (key === 'dataSource') {
+        await loadGameData()
+      }
     }
     return store.store
   })
 
   ipcMain.handle('settings:get-key', (_event, key: string) => {
     return store.get(key)
+  })
+
+  ipcMain.handle('settings:export', async () => {
+    try {
+      const now = new Date().toISOString().replace(/[:.]/g, '-')
+      const defaultName = `maplestory-hud-settings-${now}.json`
+      const { canceled, filePath } = await dialog.showSaveDialog(overlayWindow, {
+        defaultPath: defaultName,
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+      })
+      if (canceled || !filePath) return null
+      await writeFile(filePath, JSON.stringify(store.store, null, 2), 'utf-8')
+      trackTelemetryEvent('settings.exported')
+      return filePath
+    } catch (err) {
+      log.error('settings:export failed', err)
+      return null
+    }
+  })
+
+  ipcMain.handle('settings:import', async () => {
+    try {
+      const { canceled, filePaths } = await dialog.showOpenDialog(overlayWindow, {
+        properties: ['openFile'],
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+      })
+      if (canceled || filePaths.length === 0) return null
+      const filePath = filePaths[0]
+      const raw = await readFile(filePath, 'utf-8')
+      const parsed = JSON.parse(raw) as Partial<UserStoreSchema>
+      if (!parsed || typeof parsed !== 'object') return null
+      for (const [key, value] of Object.entries(parsed)) {
+        const validate = SETTINGS_VALIDATORS[key]
+        if (validate && validate(value)) {
+          store.set(key as keyof UserStoreSchema, value as never)
+        }
+      }
+      await loadGameData()
+      unregisterHotkeys()
+      setupCallbacks.registerHotkeys()
+      trackTelemetryEvent('settings.imported')
+      return store.store
+    } catch (err) {
+      log.error('settings:import failed', err)
+      return null
+    }
   })
 
   // --- Capture global control ---
@@ -225,6 +282,14 @@ export async function registerIpcHandlers(
     store.set('ocr', { ...current, ...settings })
   })
 
+  ipcMain.handle('ocr:get-health', () => {
+    return getOcrHealthSummary()
+  })
+
+  ipcMain.handle('ocr:reset-health', () => {
+    resetOcrHealthSummary()
+  })
+
   ipcMain.handle('ocr:calibrate', async (_event, regionId: string) => {
     const regions = store.get('captureRegions', {}) as Record<
       string,
@@ -272,6 +337,29 @@ export async function registerIpcHandlers(
       toggleLock: 'F9',
       screenshot: 'F10'
     })
+  })
+
+  ipcMain.handle('hotkeys:validate', (_event, hotkeys: {
+    toggleCapture: string
+    resetStats: string
+    toggleLock: string
+    screenshot: string
+  }) => {
+    return validateHotkeys(hotkeys)
+  })
+
+  ipcMain.handle('hotkeys:update', (_event, hotkeys: {
+    toggleCapture: string
+    resetStats: string
+    toggleLock: string
+    screenshot: string
+  }) => {
+    const validated = validateHotkeys(hotkeys)
+    if (!validated.ok) return validated
+    store.set('hotkeys', hotkeys)
+    unregisterHotkeys()
+    setupCallbacks.registerHotkeys()
+    return validated
   })
 
   // --- CSV Export ---
@@ -397,8 +485,13 @@ export async function registerIpcHandlers(
             resetStats: 'F8',
             toggleLock: 'F9',
             screenshot: 'F10'
-          })
+          }),
+          performance: store.get('performance', { mode: 'balanced' }),
+          accessibility: store.get('accessibility', { fontScale: 1, highContrast: false }),
+          locale: store.get('locale', 'zh-TW'),
+          dataSource: store.get('dataSource', { mode: 'bundled', pluginDir: '' })
         },
+        ocrHealth: getOcrHealthSummary(),
         logs: {
           path: log.transports.file.getFile().path
         }
@@ -417,6 +510,44 @@ export async function registerIpcHandlers(
   // --- App control ---
   ipcMain.handle('app:get-version', () => {
     return app.getVersion()
+  })
+
+  ipcMain.handle('app:check-updates', async () => {
+    try {
+      const result = await checkForUpdates()
+      trackTelemetryEvent('update.checked', { hasUpdate: result.hasUpdate })
+      return result
+    } catch (err) {
+      log.warn('app:check-updates failed', err)
+      return null
+    }
+  })
+
+  ipcMain.handle('app:get-data-source', () => {
+    return getCurrentDataSourceInfo()
+  })
+
+  ipcMain.handle('app:export-latest-crash-report', async () => {
+    try {
+      const crashDir = join(app.getPath('userData'), 'crash-reports')
+      await mkdir(crashDir, { recursive: true })
+      const files = (await readdir(crashDir))
+        .filter((name) => name.endsWith('.json'))
+        .sort()
+      if (files.length === 0) return null
+      const latestName = files[files.length - 1]
+      const sourcePath = join(crashDir, latestName)
+      const { canceled, filePath } = await dialog.showSaveDialog(overlayWindow, {
+        defaultPath: latestName,
+        filters: [{ name: 'JSON', extensions: ['json'] }]
+      })
+      if (canceled || !filePath) return null
+      await copyFile(sourcePath, filePath)
+      return filePath
+    } catch (err) {
+      log.warn('app:export-latest-crash-report failed', err)
+      return null
+    }
   })
 
   ipcMain.on('app:quit', () => {
@@ -452,6 +583,12 @@ export async function registerIpcHandlers(
     setupCallbacks.registerHotkeys()
     trackTelemetryEvent('setup.completed')
     log.info('Setup wizard completed')
+    return true
+  })
+
+  ipcMain.handle('setup:reset', () => {
+    store.set('_setupCompleted', false)
+    trackTelemetryEvent('wizard.reset')
     return true
   })
 

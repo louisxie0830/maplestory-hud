@@ -4,7 +4,7 @@ import { idbStorage } from '../lib/idb-storage'
 import { DEFAULT_OCR_CONFIDENCE, DEFAULT_PREPROCESS_THRESHOLD, DEFAULT_OVERLAY_OPACITY } from '../../../shared/constants'
 import type { CaptureRegion, OcrSettings } from '../types/settings'
 
-type SettingsTab = 'general' | 'capture' | 'calibration' | 'about'
+type SettingsTab = 'general' | 'capture' | 'calibration' | 'advanced' | 'about'
 
 interface HudPanelLayout {
   x: number
@@ -24,6 +24,18 @@ interface SettingsState {
   sections: Record<string, SectionState>
   overlayOpacity: number
   theme: Theme
+  locale: 'zh-TW' | 'en'
+  performanceMode: 'balanced' | 'performance' | 'power-saver'
+  accessibility: {
+    fontScale: number
+    highContrast: boolean
+  }
+  hotkeys: {
+    toggleCapture: string
+    resetStats: string
+    toggleLock: string
+    screenshot: string
+  }
   isLocked: boolean
   isVisible: boolean
 
@@ -45,9 +57,14 @@ interface SettingsState {
   toggleSection: (sectionId: string) => void
   setOverlayOpacity: (opacity: number) => void
   setTheme: (theme: Theme) => void
+  setLocale: (locale: 'zh-TW' | 'en') => void
+  setPerformanceMode: (mode: 'balanced' | 'performance' | 'power-saver') => void
+  setAccessibility: (settings: { fontScale?: number; highContrast?: boolean }) => void
+  setHotkeys: (hotkeys: { toggleCapture: string; resetStats: string; toggleLock: string; screenshot: string }) => Promise<{ ok: boolean; conflicts: string[] }>
   setLocked: (locked: boolean) => void
   setVisible: (visible: boolean) => void
   resetHudPosition: () => void
+  applyLayoutTemplate: (template: 'minimal' | 'boss' | 'grind') => void
 
   // Capture running actions
   toggleCapture: () => Promise<void>
@@ -91,6 +108,10 @@ export const useSettingsStore = create<SettingsState>()(
   sections: DEFAULT_SECTIONS,
   overlayOpacity: DEFAULT_OVERLAY_OPACITY,
   theme: 'dark' as Theme,
+  locale: 'zh-TW',
+  performanceMode: 'balanced',
+  accessibility: { fontScale: 1, highContrast: false },
+  hotkeys: { toggleCapture: 'F7', resetStats: 'F8', toggleLock: 'F9', screenshot: 'F10' },
   isLocked: true,
   isVisible: true,
 
@@ -128,12 +149,56 @@ export const useSettingsStore = create<SettingsState>()(
       window.electronAPI?.updateSettings({ overlay: { ...current, theme } })
     }).catch(() => {})
   },
+  setLocale: (locale) => {
+    set({ locale })
+    window.electronAPI?.updateSettings({ locale }).catch(() => {})
+  },
+  setPerformanceMode: (mode) => {
+    set({ performanceMode: mode })
+    window.electronAPI?.updateSettings({ performance: { mode } }).catch(() => {})
+  },
+  setAccessibility: (settings) => {
+    const current = get().accessibility
+    const next = {
+      fontScale: settings.fontScale ?? current.fontScale,
+      highContrast: settings.highContrast ?? current.highContrast
+    }
+    set({ accessibility: next })
+    window.electronAPI?.updateSettings({ accessibility: next }).catch(() => {})
+  },
+  setHotkeys: async (hotkeys) => {
+    const result = await window.electronAPI?.updateHotkeys(hotkeys)
+    if (result?.ok) {
+      set({ hotkeys })
+    }
+    return result ?? { ok: false, conflicts: ['IPC not ready'] }
+  },
 
   setLocked: (locked) => set({ isLocked: locked }),
   setVisible: (visible) => set({ isVisible: visible }),
 
   resetHudPosition: () => {
     set({ hudPanel: DEFAULT_HUD, sections: DEFAULT_SECTIONS })
+  },
+  applyLayoutTemplate: (template) => {
+    if (template === 'minimal') {
+      set({
+        hudPanel: { ...get().hudPanel, width: 230 },
+        sections: { damage: { collapsed: true }, timers: { collapsed: false }, map: { collapsed: true } }
+      })
+      return
+    }
+    if (template === 'boss') {
+      set({
+        hudPanel: { ...get().hudPanel, width: 280 },
+        sections: { damage: { collapsed: false }, timers: { collapsed: false }, map: { collapsed: true } }
+      })
+      return
+    }
+    set({
+      hudPanel: { ...get().hudPanel, width: 270 },
+      sections: { damage: { collapsed: true }, timers: { collapsed: false }, map: { collapsed: false } }
+    })
   },
 
   toggleCapture: async () => {
@@ -182,12 +247,28 @@ export const useSettingsStore = create<SettingsState>()(
     const overlay = (settings.overlay ?? {}) as Record<string, unknown>
     const theme = (overlay.theme === 'light' ? 'light' : 'dark') as Theme
     const opacity = typeof overlay.opacity === 'number' ? overlay.opacity : get().overlayOpacity
+    const locale = settings.locale === 'en' ? 'en' : 'zh-TW'
+    const performance = (settings.performance as { mode?: 'balanced' | 'performance' | 'power-saver' } | undefined)?.mode ?? 'balanced'
+    const accessibility = settings.accessibility as { fontScale?: number; highContrast?: boolean } | undefined
+    const hotkeys = settings.hotkeys as { toggleCapture?: string; resetStats?: string; toggleLock?: string; screenshot?: string } | undefined
     set({
       captureRegions: (settings.captureRegions as Record<string, CaptureRegion>) || {},
       captureIntervals: (settings.captureIntervals as Record<string, number>) || {},
       ocrSettings: (settings.ocr as OcrSettings) || DEFAULT_OCR,
       overlayOpacity: opacity,
-      theme
+      theme,
+      locale,
+      performanceMode: performance,
+      accessibility: {
+        fontScale: typeof accessibility?.fontScale === 'number' ? accessibility.fontScale : 1,
+        highContrast: accessibility?.highContrast === true
+      },
+      hotkeys: {
+        toggleCapture: hotkeys?.toggleCapture || 'F7',
+        resetStats: hotkeys?.resetStats || 'F8',
+        toggleLock: hotkeys?.toggleLock || 'F9',
+        screenshot: hotkeys?.screenshot || 'F10'
+      }
     })
   }
 }),
@@ -199,6 +280,10 @@ export const useSettingsStore = create<SettingsState>()(
         sections: state.sections,
         overlayOpacity: state.overlayOpacity,
         theme: state.theme,
+        locale: state.locale,
+        performanceMode: state.performanceMode,
+        accessibility: state.accessibility,
+        hotkeys: state.hotkeys,
         isLocked: state.isLocked,
         isVisible: state.isVisible
       }),
@@ -212,6 +297,10 @@ export const useSettingsStore = create<SettingsState>()(
           sections: { ...current.sections, ...saved.sections },
           overlayOpacity: saved.overlayOpacity ?? current.overlayOpacity,
           theme,
+          locale: saved.locale ?? current.locale,
+          performanceMode: saved.performanceMode ?? current.performanceMode,
+          accessibility: saved.accessibility ?? current.accessibility,
+          hotkeys: saved.hotkeys ?? current.hotkeys,
           isLocked: saved.isLocked ?? current.isLocked,
           isVisible: saved.isVisible ?? current.isVisible
         }

@@ -1,4 +1,6 @@
 import { app, BrowserWindow } from 'electron'
+import { mkdir, writeFile } from 'fs/promises'
+import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { createOverlayWindow } from './overlay-window'
 import { createTray } from './tray'
@@ -12,6 +14,7 @@ import { registerHotkeys, unregisterHotkeys } from './hotkey-manager'
 import { DEFAULT_CAPTURE_INTERVAL_MS } from '../shared/constants'
 import log from 'electron-log/main'
 import { applyAppIcon } from './utils/icon'
+import { checkForUpdates } from './update-checker'
 
 // Windows needs hardware acceleration disabled for transparent windows
 if (process.platform === 'win32') {
@@ -30,9 +33,11 @@ if (process.argv.includes('--app-version')) {
 // Global error handlers
 process.on('uncaughtException', (err) => {
   log.error('Uncaught exception:', err)
+  void writeCrashReport('uncaughtException', err)
 })
 process.on('unhandledRejection', (reason) => {
   log.error('Unhandled rejection:', reason)
+  void writeCrashReport('unhandledRejection', reason)
 })
 
 // Single instance lock — prevent duplicate app windows
@@ -105,6 +110,15 @@ app.whenReady().then(async () => {
   }
 
   log.info('MapleStory HUD ready')
+  void checkForUpdates()
+    .then((update) => {
+      if (update.hasUpdate) {
+        log.info(`Update available: v${update.latestVersion}`)
+      }
+    })
+    .catch((err) => {
+      log.warn('Startup update check failed:', err)
+    })
 })
 
 function ensureDefaultRegions(): void {
@@ -167,3 +181,27 @@ app.on('will-quit', async () => {
 app.on('window-all-closed', () => {
   app.quit()
 })
+
+async function writeCrashReport(type: string, payload: unknown): Promise<void> {
+  try {
+    const crashDir = join(app.getPath('userData'), 'crash-reports')
+    await mkdir(crashDir, { recursive: true })
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const filePath = join(crashDir, `crash-${stamp}.json`)
+    const data = {
+      type,
+      at: new Date().toISOString(),
+      appVersion: app.getVersion(),
+      platform: process.platform,
+      arch: process.arch,
+      payload: payload instanceof Error ? {
+        name: payload.name,
+        message: payload.message,
+        stack: payload.stack
+      } : payload
+    }
+    await writeFile(filePath, JSON.stringify(data, null, 2), 'utf-8')
+  } catch (err) {
+    log.warn('writeCrashReport failed:', err)
+  }
+}

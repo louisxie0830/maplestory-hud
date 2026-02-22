@@ -4,6 +4,24 @@ MapleStory HUD 是一個以 Electron + React + TypeScript 開發的桌面覆蓋�
 
 ## 版本更新
 
+### v0.1.12
+
+- 全面功能升級（10 項）：
+  - 自動更新檢查：新增 GitHub Release 版本比對（可在進階設定一鍵檢查）。
+  - OCR 健康檢查：新增每區域成功率/延遲/信心度統計與重置。
+  - 重新校準精靈：新增「重跑設定精靈」入口。
+  - 設定匯入/匯出：新增 JSON 備份與還原。
+  - Crash 報告：全域錯誤自動寫入 `userData/crash-reports`，可匯出最近 crash。
+  - HUD 模板：新增 `最小化 / 打王 / 練功` 版面模板。
+  - 快捷鍵衝突檢查：新增重複鍵位檢查與套用前驗證。
+  - 效能模式：新增 `高更新率 / 平衡 / 省電`（影響擷取間隔倍率）。
+  - 可及性：新增字體縮放與高對比模式。
+  - 資料來源插件：新增 `bundled/plugin` 切換與 plugin data folder 支援。
+- i18n 基礎：
+  - 新增語系狀態（`zh-TW / en`）與設定分頁文案映射基礎架構。
+- CI/CD：
+  - 延續 tag 發版流程，並維持 `release:check` 關卡。
+
 ### v0.1.11
 
 - CI/CD 升級（參考 `ms-assistant`）：

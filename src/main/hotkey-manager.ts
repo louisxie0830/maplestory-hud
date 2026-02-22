@@ -14,6 +14,11 @@ interface HotkeyConfig {
   screenshot: string
 }
 
+export interface HotkeyValidationResult {
+  ok: boolean
+  conflicts: string[]
+}
+
 const DEFAULT_HOTKEYS: HotkeyConfig = {
   toggleCapture: 'F7',
   resetStats: 'F8',
@@ -36,6 +41,10 @@ export function getHotkeys(): HotkeyConfig {
 export function registerHotkeys(window: BrowserWindow): void {
   overlayWindow = window
   const hotkeys = getHotkeys()
+  const validation = validateHotkeys(hotkeys)
+  if (!validation.ok) {
+    log.warn(`Hotkey conflicts detected: ${validation.conflicts.join(', ')}`)
+  }
 
   // F7: Toggle capture start/stop
   registerKey(hotkeys.toggleCapture, () => {
@@ -118,4 +127,20 @@ async function captureScreenshot(): Promise<void> {
 /** 取消註冊所有全域快捷鍵 */
 export function unregisterHotkeys(): void {
   globalShortcut.unregisterAll()
+}
+
+export function validateHotkeys(config: HotkeyConfig): HotkeyValidationResult {
+  const mapping = new Map<string, string[]>()
+  for (const [name, key] of Object.entries(config)) {
+    const normalized = key.trim().toUpperCase()
+    const list = mapping.get(normalized) ?? []
+    list.push(name)
+    mapping.set(normalized, list)
+  }
+
+  const conflicts = [...mapping.entries()]
+    .filter(([, names]) => names.length > 1)
+    .map(([key, names]) => `${key} -> ${names.join('/')}`)
+
+  return { ok: conflicts.length === 0, conflicts }
 }

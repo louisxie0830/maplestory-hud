@@ -1,6 +1,8 @@
 import { BrowserWindow } from 'electron'
 import { captureRegion, CaptureRegion, isGameWindowVisible } from './screen-capture'
 import { runOcrPipeline } from '../ocr/ocr-pipeline'
+import { getUserStore } from '../data/user-data-store'
+import { recordOcrAttempt } from '../ocr/health-metrics'
 import log from 'electron-log/main'
 
 interface CaptureJob {
@@ -80,6 +82,7 @@ function stopTick(): void {
 }
 
 async function processJob(job: CaptureJob): Promise<void> {
+  const startedAt = Date.now()
   try {
     const result = await captureRegion(job.region)
 
@@ -99,13 +102,17 @@ async function processJob(job: CaptureJob): Promise<void> {
 
     const ocrResult = await runOcrPipeline(job.id, result.buffer)
     if (ocrResult) {
+      recordOcrAttempt(job.id, true, Date.now() - startedAt, ocrResult.confidence)
       try {
         overlayWindow?.webContents.send(`ocr:${job.id}`, ocrResult)
       } catch {
         // Window may be destroyed during shutdown
       }
+    } else {
+      recordOcrAttempt(job.id, false, Date.now() - startedAt)
     }
   } catch (error) {
+    recordOcrAttempt(job.id, false, Date.now() - startedAt)
     log.error(`Capture job ${job.id} failed:`, error)
   }
 }
@@ -126,7 +133,7 @@ export function addCaptureJob(
   const job: CaptureJob = {
     id,
     region,
-    interval,
+    interval: applyPerformanceInterval(interval),
     enabled: running,
     processing: false,
     lastRun: 0
@@ -134,7 +141,14 @@ export function addCaptureJob(
 
   jobs.set(id, job)
   scheduleTick()
-  log.info(`Capture job added: ${id} (interval: ${interval}ms)`)
+  log.info(`Capture job added: ${id} (interval: ${job.interval}ms)`)
+}
+
+function applyPerformanceInterval(baseInterval: number): number {
+  const mode = getUserStore().get('performance.mode', 'balanced') as 'balanced' | 'performance' | 'power-saver'
+  const multiplier = mode === 'performance' ? 0.75 : mode === 'power-saver' ? 1.5 : 1
+  const adjusted = Math.round(baseInterval * multiplier)
+  return Math.max(50, Math.min(60000, adjusted))
 }
 
 function triggerAutoPause(): void {

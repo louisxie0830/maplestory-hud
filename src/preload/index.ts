@@ -19,6 +19,8 @@ export interface ElectronAPI {
   getSettings: () => Promise<Record<string, unknown>>
   updateSettings: (settings: Record<string, unknown>) => Promise<Record<string, unknown>>
   getSettingsKey: (key: string) => Promise<unknown>
+  exportSettings: () => Promise<string | null>
+  importSettings: () => Promise<Record<string, unknown> | null>
 
   /** 擷取全域控制 */
   pauseCapture: () => Promise<void>
@@ -46,6 +48,18 @@ export interface ElectronAPI {
   updateCaptureJob: (regionId: string, region: unknown) => Promise<void>
   getOcrSettings: () => Promise<{ confidenceThreshold: number; preprocessInvert: boolean; preprocessThreshold: number }>
   updateOcrSettings: (settings: Record<string, unknown>) => Promise<void>
+  getOcrHealth: () => Promise<Array<{
+    regionId: string
+    total: number
+    success: number
+    failed: number
+    successRate: number
+    avgLatencyMs: number
+    avgConfidence: number
+    lastSuccessAt: number | null
+    lastFailureAt: number | null
+  }>>
+  resetOcrHealth: () => Promise<void>
   calibrateRegion: (regionId: string) => Promise<{
     rawImage: string
     processedImage: string
@@ -60,6 +74,8 @@ export interface ElectronAPI {
 
   /** 快捷鍵 */
   getHotkeys: () => Promise<{ toggleCapture: string; resetStats: string; toggleLock: string; screenshot: string }>
+  validateHotkeys: (hotkeys: { toggleCapture: string; resetStats: string; toggleLock: string; screenshot: string }) => Promise<{ ok: boolean; conflicts: string[] }>
+  updateHotkeys: (hotkeys: { toggleCapture: string; resetStats: string; toggleLock: string; screenshot: string }) => Promise<{ ok: boolean; conflicts: string[] }>
   onCaptureToggled: (callback: (running: boolean) => void) => () => void
   onStatsReset: (callback: () => void) => () => void
   onScreenshotTaken: (callback: (filePath: string) => void) => () => void
@@ -78,6 +94,16 @@ export interface ElectronAPI {
 
   /** 應用程式控制 */
   getAppVersion: () => Promise<string>
+  checkForUpdates: () => Promise<{
+    currentVersion: string
+    latestVersion: string
+    hasUpdate: boolean
+    releaseUrl: string
+    publishedAt: string
+    installerUrl: string | null
+  } | null>
+  exportLatestCrashReport: () => Promise<string | null>
+  getDataSourceInfo: () => Promise<{ mode: 'bundled' | 'plugin'; path: string }>
   quitApp: () => void
   openLogViewer: () => void
 
@@ -86,6 +112,7 @@ export interface ElectronAPI {
   getScreenInfo: () => Promise<{ width: number; height: number }>
   checkGameWindow: () => Promise<boolean>
   completeSetup: () => Promise<boolean>
+  resetSetup: () => Promise<boolean>
 
   /** 覆蓋層透明度變更 */
   onOpacityChanged: (callback: (opacity: number) => void) => () => void
@@ -120,6 +147,8 @@ const api: ElectronAPI = {
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (settings) => ipcRenderer.invoke('settings:update', settings),
   getSettingsKey: (key) => ipcRenderer.invoke('settings:get-key', key),
+  exportSettings: () => ipcRenderer.invoke('settings:export'),
+  importSettings: () => ipcRenderer.invoke('settings:import'),
 
   // Capture global control
   pauseCapture: () => ipcRenderer.invoke('capture:pause-all'),
@@ -158,6 +187,8 @@ const api: ElectronAPI = {
     ipcRenderer.invoke('capture:update-job', regionId, region),
   getOcrSettings: () => ipcRenderer.invoke('ocr:get-settings'),
   updateOcrSettings: (settings) => ipcRenderer.invoke('ocr:update-settings', settings),
+  getOcrHealth: () => ipcRenderer.invoke('ocr:get-health'),
+  resetOcrHealth: () => ipcRenderer.invoke('ocr:reset-health'),
   calibrateRegion: (regionId) => ipcRenderer.invoke('ocr:calibrate', regionId),
 
   // Timers
@@ -166,6 +197,8 @@ const api: ElectronAPI = {
 
   // Hotkeys
   getHotkeys: () => ipcRenderer.invoke('hotkeys:get'),
+  validateHotkeys: (hotkeys) => ipcRenderer.invoke('hotkeys:validate', hotkeys),
+  updateHotkeys: (hotkeys) => ipcRenderer.invoke('hotkeys:update', hotkeys),
   onCaptureToggled: (callback) => {
     const listener = (_event: Electron.IpcRendererEvent, running: boolean): void => { callback(running) }
     ipcRenderer.on('capture:toggled', listener)
@@ -194,6 +227,9 @@ const api: ElectronAPI = {
 
   // App control
   getAppVersion: () => ipcRenderer.invoke('app:get-version'),
+  checkForUpdates: () => ipcRenderer.invoke('app:check-updates'),
+  exportLatestCrashReport: () => ipcRenderer.invoke('app:export-latest-crash-report'),
+  getDataSourceInfo: () => ipcRenderer.invoke('app:get-data-source'),
   quitApp: () => ipcRenderer.send('app:quit'),
   openLogViewer: () => ipcRenderer.send('app:open-log-viewer'),
 
@@ -202,6 +238,7 @@ const api: ElectronAPI = {
   getScreenInfo: () => ipcRenderer.invoke('setup:get-screen-info'),
   checkGameWindow: () => ipcRenderer.invoke('setup:check-game-window'),
   completeSetup: () => ipcRenderer.invoke('setup:complete'),
+  resetSetup: () => ipcRenderer.invoke('setup:reset'),
 
   // Overlay opacity changed
   onOpacityChanged: (callback) => {

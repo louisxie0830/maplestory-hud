@@ -31,6 +31,24 @@ export interface AppSettings {
     isLocked: boolean
     theme?: string
   }
+  performance?: {
+    mode: 'balanced' | 'performance' | 'power-saver'
+  }
+  accessibility?: {
+    fontScale: number
+    highContrast: boolean
+  }
+  locale?: 'zh-TW' | 'en'
+  dataSource?: {
+    mode: 'bundled' | 'plugin'
+    pluginDir: string
+  }
+  hotkeys?: {
+    toggleCapture: string
+    resetStats: string
+    toggleLock: string
+    screenshot: string
+  }
 }
 
 export interface CalibrationResult {

@@ -1,7 +1,8 @@
-import { readFile } from 'fs/promises'
+import { readFile, access } from 'fs/promises'
 import { join } from 'path'
 import { app } from 'electron'
 import log from 'electron-log/main'
+import { getUserStore } from './user-data-store'
 import type { MapData, MonsterData, BossData, TrainingSpotData } from '../../shared/game-data'
 
 let maps: Record<number, MapData> = {}
@@ -11,15 +12,32 @@ let trainingSpots: TrainingSpotData[] = []
 let trainingSpotsByMapId: Record<number, TrainingSpotData[]> = {}
 
 function getDataPath(): string {
+  const source = getUserStore().get('dataSource', { mode: 'bundled', pluginDir: '' })
+  if (source.mode === 'plugin' && source.pluginDir) {
+    return source.pluginDir
+  }
   if (app.isPackaged) {
     return join(process.resourcesPath, 'data')
   }
   return join(app.getAppPath(), 'data')
 }
 
+async function canRead(path: string): Promise<boolean> {
+  try {
+    await access(path)
+    return true
+  } catch {
+    return false
+  }
+}
+
 async function loadJsonFile<T>(filename: string, fallback: T): Promise<T> {
   try {
-    const filePath = join(getDataPath(), filename)
+    const base = getDataPath()
+    const filePath = join(base, filename)
+    if (!(await canRead(filePath))) {
+      throw new Error(`Missing data file: ${filePath}`)
+    }
     const raw = await readFile(filePath, 'utf-8')
     return JSON.parse(raw) as T
   } catch {
@@ -64,7 +82,7 @@ export async function loadGameData(): Promise<void> {
     `Game data loaded: ${Object.keys(maps).length} maps, ` +
       `${Object.keys(monsters).length} monsters, ` +
       `${Object.keys(bosses).length} bosses, ` +
-      `${trainingSpots.length} training spots`
+      `${trainingSpots.length} training spots, source=${getDataPath()}`
   )
 }
 
@@ -135,4 +153,9 @@ export function getTrainingSpotsByMapId(mapId: number): TrainingSpotData[] {
 /** 取得所有 Boss 資料 */
 export function getAllBosses(): BossData[] {
   return Object.values(bosses)
+}
+
+export function getCurrentDataSourceInfo(): { mode: 'bundled' | 'plugin'; path: string } {
+  const source = getUserStore().get('dataSource', { mode: 'bundled', pluginDir: '' })
+  return { mode: source.mode, path: getDataPath() }
 }
