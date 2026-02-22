@@ -16,14 +16,28 @@ function fail(message) {
 }
 
 function run(cmd, args) {
-  const actualCmd = process.platform === 'win32' && cmd === 'npm' ? 'npm.cmd' : cmd
-  const result = spawnSync(actualCmd, args, {
-    cwd: ROOT,
-    stdio: 'inherit',
-    env: process.env
-  })
+  const quote = (value) => {
+    if (!value.includes(' ') && !value.includes('"')) return value
+    return `"${value.replace(/"/g, '\\"')}"`
+  }
+
+  const display = `${cmd} ${args.join(' ')}`.trim()
+  const result = process.platform === 'win32'
+    ? spawnSync(
+      'cmd.exe',
+      ['/d', '/s', '/c', [cmd, ...args].map(quote).join(' ')],
+      { cwd: ROOT, stdio: 'inherit', env: process.env }
+    )
+    : spawnSync(cmd, args, { cwd: ROOT, stdio: 'inherit', env: process.env })
+
+  if (result.error) {
+    fail(`${display} failed to start: ${result.error.message}`)
+  }
+  if (result.status === null) {
+    fail(`${display} terminated by signal ${result.signal ?? 'unknown'}`)
+  }
   if (result.status !== 0) {
-    fail(`${actualCmd} ${args.join(' ')} exited with code ${result.status}`)
+    fail(`${display} exited with code ${result.status}`)
   }
 }
 
