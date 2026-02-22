@@ -65,9 +65,20 @@ npm run build:win
 
 - `.github/workflows/ci.yml`
   - 在 push / PR 時執行 `typecheck + lint + test + build`。
+  - 同時執行 Windows smoke build（`windows-latest` + `build:win`）並上傳安裝檔 artifact。
 - `.github/workflows/release-win.yml`
   - 在建立 `v*` tag 時執行 Windows 打包，並上傳安裝檔 artifact。
   - 同時建立 GitHub Release 並附上安裝檔。
+
+## Windows 安裝驗證流程
+
+1. 推送到 `master` 後，前往 GitHub Actions 的 `CI` workflow。
+2. 等待 `windows-smoke` job 成功。
+3. 下載 artifact `windows-smoke-installer`（`.exe` 安裝檔）。
+4. 在 Windows 11/10 執行安裝檔，確認：
+   - 可正常開啟 HUD
+   - 系統匣存在
+   - F7/F8/F9/F10 可觸發
 
 ## 驗收清單（PM）
 

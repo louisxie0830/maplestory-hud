@@ -40,7 +40,6 @@ const HudApp: React.FC = () => {
   const setMeso = useCharacterStore((s) => s.setMeso)
   const addDamageEntries = useDamageStore((s) => s.addDamageEntries)
   const setLocked = useSettingsStore((s) => s.setLocked)
-  const isLocked = useSettingsStore((s) => s.isLocked)
   const isSettingsOpen = useSettingsStore((s) => s.isSettingsOpen)
   const isRegionSelectorOpen = useSettingsStore((s) => s.isRegionSelectorOpen)
   const isCaptureRunning = useSettingsStore((s) => s.isCaptureRunning)
