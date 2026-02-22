@@ -3,14 +3,12 @@ import { mkdir, writeFile } from 'fs/promises'
 import { join } from 'path'
 import { electronApp, optimizer } from '@electron-toolkit/utils'
 import { createOverlayWindow } from './overlay-window'
-import { createTray } from './tray'
-import { destroyLogWindow } from './log-window'
 import { registerIpcHandlers } from './ipc-handlers'
 import { initOcrEngine, shutdownOcrEngine } from './ocr/ocr-engine'
+import { initOpenCvRuntime } from './ocr/opencv-runtime'
 import { initScheduler, addCaptureJob, stopAll } from './capture/capture-scheduler'
 import { DEFAULT_REGIONS, CAPTURE_INTERVALS } from './capture/region-config'
 import { getUserStore } from './data/user-data-store'
-import { registerHotkeys, unregisterHotkeys } from './hotkey-manager'
 import { DEFAULT_CAPTURE_INTERVAL_MS } from '../shared/constants'
 import log from 'electron-log/main'
 import { applyAppIcon } from './utils/icon'
@@ -70,49 +68,30 @@ app.whenReady().then(async () => {
   // Create overlay window
   overlayWindow = createOverlayWindow()
 
-  // Create system tray
-  createTray(overlayWindow)
-
-  // Register IPC handlers (loads game data) — pass setup callbacks
-  const startCaptureFn = (): void => startCaptureJobs()
-  const registerHotkeysFn = (): void => { registerHotkeys(overlayWindow!) }
-  await registerIpcHandlers(overlayWindow, {
-    startCaptureJobs: startCaptureFn,
-    registerHotkeys: registerHotkeysFn
-  })
+  // Register IPC handlers
+  await registerIpcHandlers(overlayWindow)
 
   // Initialize OCR engine
   try {
+    await initOpenCvRuntime()
     await initOcrEngine()
   } catch (err) {
     log.error('Failed to initialize OCR engine:', err)
   }
 
-  // Migration: existing users who already have config should skip the wizard
-  // Must run BEFORE ensureDefaultRegions (which would populate empty stores)
+  // Apply saved capture target
   const store = getUserStore()
   const captureTarget = store.get('captureTarget', { sourceId: '', windowName: '' })
   setPreferredCaptureWindow(captureTarget.sourceId || null, captureTarget.windowName)
-  const setupDone = store.get('_setupCompleted', false)
-  if (!setupDone) {
-    const existingRegions = store.get('captureRegions', {})
-    if (Object.keys(existingRegions).length > 0) {
-      store.set('_setupCompleted', true)
-      log.info('Migration: existing config detected, marking setup as completed')
-    }
-  }
 
-  // Ensure default regions exist (needed for wizard OCR test)
+  // Ensure default regions exist
   ensureDefaultRegions()
 
   // Initialize capture scheduler
   initScheduler(overlayWindow)
 
-  // Only start capture and hotkeys if setup is already completed
-  if (store.get('_setupCompleted', false)) {
-    startCaptureJobs()
-    registerHotkeys(overlayWindow)
-  }
+  // Always register jobs. Jobs stay paused until user starts capture.
+  startCaptureJobs()
 
   log.info('MapleStory HUD ready')
   void checkForUpdates()
@@ -148,24 +127,33 @@ function ensureDefaultRegions(): void {
     }
   }
 
-  // One-time migration: enable meso region if it was disabled by old defaults
-  const mesoMigrated = store.get('_mesoEnabledMigration' as keyof typeof regions, false)
-  if (!mesoMigrated && regions.meso && !regions.meso.enabled) {
-    regions.meso.enabled = true
-    store.set('captureRegions.meso', regions.meso)
-    log.info('Migration: enabled meso capture region')
+  // Remove legacy/unused regions.
+  if ('damage' in regions) {
+    delete regions.damage
+    store.delete('captureRegions.damage')
+    log.info('Removed legacy capture region: damage')
   }
-  if (!mesoMigrated) {
-    store.set('_mesoEnabledMigration' as keyof typeof regions, true as never)
-  }
+
+  // [meso disabled] Migration no longer needed — meso capture is disabled
+  // const mesoMigrated = store.get('_mesoEnabledMigration' as keyof typeof regions, false)
+  // if (!mesoMigrated && regions.meso && !regions.meso.enabled) {
+  //   regions.meso.enabled = true
+  //   store.set('captureRegions.meso', regions.meso)
+  //   log.info('Migration: enabled meso capture region')
+  // }
+  // if (!mesoMigrated) {
+  //   store.set('_mesoEnabledMigration' as keyof typeof regions, true as never)
+  // }
 }
 
 function startCaptureJobs(): void {
   const store = getUserStore()
   const regions = store.get('captureRegions', {})
   const intervals = store.get('captureIntervals', CAPTURE_INTERVALS as unknown as Record<string, number>)
+  const allowedRegionIds = new Set(['hp', 'mp', 'exp', 'mapName', 'meso'])
 
   for (const [id, region] of Object.entries(regions)) {
+    if (!allowedRegionIds.has(id)) continue
     if (region.enabled) {
       const interval = intervals[id] || DEFAULT_CAPTURE_INTERVAL_MS
       addCaptureJob(id, region, interval)
@@ -174,8 +162,6 @@ function startCaptureJobs(): void {
 }
 
 app.on('will-quit', async () => {
-  unregisterHotkeys()
-  destroyLogWindow()
   stopAll()
   log.info('All capture jobs stopped')
   try {

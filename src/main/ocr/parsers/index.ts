@@ -1,4 +1,3 @@
-export { parseHpMp, validateDelta, type HpMpResult } from './hp-mp-parser'
-export { parseExp, calculateExpRate, type ExpResult, type ExpRateData } from './exp-parser'
-export { parseDamage, deduplicateDamage, calculateDpm, type DamageEntry, type DpmData } from './damage-parser'
+export { parseHpMp, parseHpMpByRegion, type HpMpResult } from './hp-mp-parser'
+export { parseExp, type ExpResult } from './exp-parser'
 export { parseMeso, type MesoResult } from './meso-parser'

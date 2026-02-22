@@ -44,15 +44,3 @@ export interface TrainingSpotData {
   notes: string
   tags: string[]
 }
-
-/** 計時器設定 */
-export interface TimerConfig {
-  id: string
-  name: string
-  type: 'boss' | 'potion' | 'custom' | 'event'
-  durationMs: number
-  recurring: boolean
-  alertSound: boolean
-  bossId?: string
-  startedAt?: number
-}

@@ -36,13 +36,6 @@ const PRESETS: Record<string, PreprocessOptions> = {
     thresholdValue: 150,
     sharpen: true
   },
-  damage: {
-    targetWidth: 800,
-    invert: false,
-    threshold: true,
-    thresholdValue: 128,
-    sharpen: false
-  },
   mapName: {
     targetWidth: 400,
     invert: true,
@@ -61,7 +54,7 @@ const PRESETS: Record<string, PreprocessOptions> = {
 
 /**
  * 取得指定區域類型的預處理設定
- * @param regionType - 區域類型（如 'hp'、'mp'、'exp'、'damage'、'meso'）
+ * @param regionType - 區域類型（如 'hp'、'mp'、'exp'、'meso'）
  * @returns 對應的預處理選項，若無對應則回傳預設值
  */
 export function getPreset(regionType: string): PreprocessOptions {

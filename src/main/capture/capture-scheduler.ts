@@ -14,11 +14,12 @@ interface CaptureJob {
   processing: boolean
   lastRun: number
   emptyStreak: number
+  lastWeakWarnAt: number
 }
 
 const jobs = new Map<string, CaptureJob>()
 let overlayWindow: BrowserWindow | null = null
-let running = true
+let running = false
 
 // Dynamic tick — setTimeout to next job due time instead of fixed-interval polling
 let tickTimer: ReturnType<typeof setTimeout> | null = null
@@ -86,7 +87,7 @@ function stopTick(): void {
 async function processJob(job: CaptureJob): Promise<void> {
   const startedAt = Date.now()
   try {
-    const result = await captureRegion(job.region)
+    const result = await captureRegion(job.region, job.id)
 
     if (!result || !result.gameWindowFound) {
       job.emptyStreak = Math.min(job.emptyStreak + 1, 100)
@@ -115,6 +116,18 @@ async function processJob(job: CaptureJob): Promise<void> {
     } else {
       job.emptyStreak = Math.min(job.emptyStreak + 1, 100)
       recordOcrAttempt(job.id, false, Date.now() - startedAt)
+      const now = Date.now()
+      if (job.emptyStreak >= 12 && (now - job.lastWeakWarnAt) > 20000) {
+        job.lastWeakWarnAt = now
+        try {
+          overlayWindow?.webContents.send('capture:ocr-weak', {
+            regionId: job.id,
+            streak: job.emptyStreak
+          })
+        } catch {
+          // Window may be destroyed during shutdown
+        }
+      }
     }
   } catch (error) {
     job.emptyStreak = Math.min(job.emptyStreak + 1, 100)
@@ -143,7 +156,8 @@ export function addCaptureJob(
     enabled: running,
     processing: false,
     lastRun: 0,
-    emptyStreak: 0
+    emptyStreak: 0,
+    lastWeakWarnAt: 0
   }
 
   jobs.set(id, job)
@@ -153,11 +167,6 @@ export function addCaptureJob(
 
 function getEffectiveInterval(job: CaptureJob): number {
   if (job.emptyStreak < 6) return job.interval
-  if (job.id === 'damage') {
-    // Damage OCR is the hottest path: back off aggressively when long-empty.
-    if (job.emptyStreak >= 20) return Math.min(job.interval * 5, 5000)
-    return Math.min(job.interval * 3, 3000)
-  }
   if (job.emptyStreak >= 20) return Math.min(job.interval * 4, 6000)
   return Math.min(job.interval * 2, 3000)
 }

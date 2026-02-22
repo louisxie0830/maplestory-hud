@@ -11,11 +11,8 @@ interface MesoHistoryEntry {
 }
 
 interface CharacterState {
-  hp: number
-  maxHp: number
-  mp: number
-  maxMp: number
   expPercent: number
+  expRawValue: number
   expHistory: ExpHistoryEntry[]
   expPerHour: number
   minutesToLevelUp: number
@@ -28,9 +25,7 @@ interface CharacterState {
   mesoPerHour: number
   lastUpdate: number
 
-  setHp: (current: number, max: number) => void
-  setMp: (current: number, max: number) => void
-  setExp: (percent: number) => void
+  setExp: (percent: number, rawValue?: number) => void
   setMeso: (amount: number) => void
   resetExpHistory: () => void
 }
@@ -41,11 +36,8 @@ const MAX_HISTORY_ENTRIES = 1800
 
 /** 管理 HP/MP/EXP/Meso 角色數值和歷史趨勢 */
 export const useCharacterStore = create<CharacterState>((set, get) => ({
-  hp: 0,
-  maxHp: 0,
-  mp: 0,
-  maxMp: 0,
   expPercent: 0,
+  expRawValue: 0,
   expHistory: [],
   expPerHour: 0,
   minutesToLevelUp: Infinity,
@@ -58,15 +50,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
   mesoPerHour: 0,
   lastUpdate: 0,
 
-  setHp: (current, max) => {
-    set({ hp: current, maxHp: max, lastUpdate: Date.now() })
-  },
-
-  setMp: (current, max) => {
-    set({ mp: current, maxMp: max, lastUpdate: Date.now() })
-  },
-
-  setExp: (percent) => {
+  setExp: (percent, rawValue) => {
     const now = Date.now()
     const state = get()
 
@@ -120,6 +104,7 @@ export const useCharacterStore = create<CharacterState>((set, get) => ({
 
     set({
       expPercent: percent,
+      expRawValue: typeof rawValue === 'number' ? rawValue : state.expRawValue,
       expHistory: history,
       expPerHour: Math.round(expPerHour * 100) / 100,
       minutesToLevelUp: Math.round(minutesToLevelUp),

@@ -1,8 +1,0 @@
-import log from 'electron-log/main'
-
-// Configure log format and transports
-log.transports.file.level = 'info'
-log.transports.console.level = 'debug'
-log.transports.file.maxSize = 5 * 1024 * 1024 // 5MB
-
-export default log

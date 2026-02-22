@@ -1,11 +1,11 @@
 import { readFile, readdir } from 'fs/promises'
 import { join } from 'path'
 import { app } from 'electron'
-import { parseHpMp, parseExp, parseDamage, parseMeso } from './parsers'
+import { parseHpMp, parseExp, parseMeso } from './parsers'
 import log from 'electron-log/main'
 
 interface ReplayCase {
-  regionId: 'hp' | 'mp' | 'exp' | 'damage' | 'meso'
+  regionId: 'hp' | 'mp' | 'exp' | 'meso'
   text: string
   expected: number | [number, number] | number[]
 }
@@ -44,11 +44,6 @@ function evalCase(testCase: ReplayCase): { pass: boolean; actual: unknown } {
       const parsed = parseExp(testCase.text)
       const actual = parsed?.percent ?? null
       return { pass: actual === testCase.expected, actual }
-    }
-    case 'damage': {
-      const parsed = parseDamage(testCase.text).map((e) => e.value)
-      const actual = parsed
-      return { pass: JSON.stringify(actual) === JSON.stringify(testCase.expected), actual }
     }
     case 'meso': {
       const parsed = parseMeso(testCase.text)

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseHpMp, parseExp, parseDamage, parseMeso } from '../../src/main/ocr/parsers'
+import { parseHpMp, parseExp, parseMeso } from '../../src/main/ocr/parsers'
 
 describe('ocr replay mini-suite', () => {
   it('parses hp/mp', () => {
@@ -10,11 +10,6 @@ describe('ocr replay mini-suite', () => {
   it('parses exp', () => {
     const exp = parseExp('67.42%')
     expect(exp?.percent).toBe(67.42)
-  })
-
-  it('parses damage list', () => {
-    const dmg = parseDamage('12345 67890')
-    expect(dmg.map((d) => d.value)).toEqual([12345, 67890])
   })
 
   it('parses meso', () => {

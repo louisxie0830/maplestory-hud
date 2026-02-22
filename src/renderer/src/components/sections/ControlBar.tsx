@@ -1,22 +1,45 @@
-import React, { useCallback } from 'react'
+import React, { useCallback, useEffect, useState } from 'react'
 import { useSettingsStore } from '../../stores/settings-store'
 
-/** 控制列，提供鎖定/解鎖、OCR 開關、設定、日誌與關閉按鈕 */
+interface GameWindowOption {
+  id: string
+  name: string
+  isGameCandidate: boolean
+}
+
+/** 控制中心 — Notion 風格：視窗選擇 + 分析按鈕 */
 export const ControlBar: React.FC = () => {
-  const isLocked = useSettingsStore((s) => s.isLocked)
-  const setLocked = useSettingsStore((s) => s.setLocked)
   const isCaptureRunning = useSettingsStore((s) => s.isCaptureRunning)
   const toggleCapture = useSettingsStore((s) => s.toggleCapture)
-  const openSettings = useSettingsStore((s) => s.openSettings)
-  const openRegionSelector = useSettingsStore((s) => s.openRegionSelector)
 
-  const handleToggleLock = useCallback(async () => {
-    const newIsLocked = await window.electronAPI?.toggleClickThrough()
-    if (newIsLocked !== undefined) {
-      setLocked(newIsLocked)
-      window.electronAPI.trackEvent('settings.opened', { action: 'toggle_lock', locked: newIsLocked })
+  const [windows, setWindows] = useState<GameWindowOption[]>([])
+  const [selectedWindowId, setSelectedWindowId] = useState('')
+  const [appliedWindowName, setAppliedWindowName] = useState('')
+  const hasWindowTarget = selectedWindowId.trim().length > 0
+
+  const refreshWindows = useCallback(async () => {
+    const [options, selected] = await Promise.all([
+      window.electronAPI.listGameWindows(),
+      window.electronAPI.getSelectedGameWindow()
+    ])
+    setWindows(options)
+    if (selected?.sourceId && options.some((w) => w.id === selected.sourceId)) {
+      setSelectedWindowId(selected.sourceId)
+      setAppliedWindowName(selected.windowName)
+      return
     }
-  }, [setLocked])
+    if (options.length > 0) {
+      setSelectedWindowId(options[0].id)
+      setAppliedWindowName('')
+    } else {
+      setSelectedWindowId('')
+      setAppliedWindowName('')
+    }
+  }, [])
+
+  useEffect(() => {
+    void refreshWindows()
+  }, [refreshWindows])
 
   const handleToggleCapture = useCallback(async () => {
     await toggleCapture()
@@ -24,44 +47,48 @@ export const ControlBar: React.FC = () => {
     window.electronAPI.trackEvent('capture.toggled', { running, source: 'control_bar' })
   }, [toggleCapture])
 
-  const handleOpenSettings = useCallback(() => {
-    openSettings()
-    window.electronAPI.trackEvent('settings.opened', { source: 'control_bar' })
-  }, [openSettings])
-
-  const handleOpenCaptureTools = useCallback(() => {
-    openSettings('capture')
-    window.electronAPI.trackEvent('settings.opened', { source: 'control_bar', tab: 'capture' })
-  }, [openSettings])
+  const handleSelectWindow = useCallback(async () => {
+    if (!selectedWindowId) return
+    const selected = await window.electronAPI.selectGameWindow(selectedWindowId)
+    if (selected) {
+      setAppliedWindowName(selected.windowName)
+      window.electronAPI.trackEvent('settings.opened', {
+        source: 'control_bar',
+        action: 'select_capture_window',
+        window: selected.windowName
+      })
+    }
+  }, [selectedWindowId])
 
   return (
-    <div className="hud-control">
-      <button className="hud-ctrl-btn accent" onClick={handleOpenCaptureTools}>
-        選擇視窗/來源
-      </button>
-      <button className="hud-ctrl-btn accent" onClick={openRegionSelector}>
-        框選偵測區域
-      </button>
+    <div className="hud-control-center">
+      <div className="hud-control-window-picker">
+        <select
+          className="hud-input full"
+          value={selectedWindowId}
+          onChange={(e) => setSelectedWindowId(e.target.value)}
+        >
+          {windows.length === 0 && <option value="">找不到可擷取視窗</option>}
+          {windows.map((w) => (
+            <option key={w.id} value={w.id}>
+              {w.isGameCandidate ? '[Maple] ' : ''}{w.name}
+            </option>
+          ))}
+        </select>
+        <button className="hud-btn" onClick={refreshWindows}>重整</button>
+        <button className="hud-btn" onClick={handleSelectWindow} disabled={!hasWindowTarget}>套用</button>
+      </div>
+      {appliedWindowName && (
+        <div className="hud-control-applied">已套用視窗：{appliedWindowName}</div>
+      )}
+      {!hasWindowTarget && <div className="hud-control-hint warning">請先選擇要擷取的遊戲視窗</div>}
+
       <button
-        className={`hud-ctrl-btn ${isLocked ? '' : 'active'}`}
-        onClick={handleToggleLock}
-      >
-        {isLocked ? '鎖定模式' : '互動模式'}
-      </button>
-      <button
-        className={`hud-ctrl-btn ${isCaptureRunning ? 'active' : 'off'}`}
+        className="hud-btn primary full"
         onClick={handleToggleCapture}
+        disabled={!isCaptureRunning && !hasWindowTarget}
       >
-        {isCaptureRunning ? '擷取中' : '已停止'}
-      </button>
-      <button className="hud-ctrl-btn" onClick={handleOpenSettings}>
-        更多設定
-      </button>
-      <button className="hud-ctrl-btn" onClick={() => window.electronAPI?.openLogViewer()}>
-        日誌
-      </button>
-      <button className="hud-ctrl-btn close" onClick={() => window.electronAPI?.quitApp()}>
-        關閉
+        {isCaptureRunning ? '暫停分析' : '開始分析'}
       </button>
     </div>
   )

@@ -2,7 +2,6 @@ import { getUserStore } from './data/user-data-store'
 import log from 'electron-log/main'
 
 type TelemetryEventName =
-  | 'setup.completed'
   | 'settings.opened'
   | 'capture.toggled'
   | 'capture.auto_paused'
@@ -12,7 +11,6 @@ type TelemetryEventName =
   | 'diagnostics.exported'
   | 'settings.imported'
   | 'settings.exported'
-  | 'wizard.reset'
   | 'update.checked'
 
 interface TelemetryEvent {
@@ -22,7 +20,6 @@ interface TelemetryEvent {
 }
 
 const ALLOWED_EVENTS = new Set<TelemetryEventName>([
-  'setup.completed',
   'settings.opened',
   'capture.toggled',
   'capture.auto_paused',
@@ -32,7 +29,6 @@ const ALLOWED_EVENTS = new Set<TelemetryEventName>([
   'diagnostics.exported',
   'settings.imported',
   'settings.exported',
-  'wizard.reset',
   'update.checked'
 ])
 

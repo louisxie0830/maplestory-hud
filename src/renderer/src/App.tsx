@@ -1,12 +1,10 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react'
-import { SetupWizard } from './components/setup/SetupWizard'
-import { HudPanel, isHudHovered } from './components/HudPanel'
-import { SettingsModal } from './components/settings/SettingsModal'
-import { RegionSelector } from './components/settings/RegionSelector'
+import { HudPanel } from './components/HudPanel'
 import { useCharacterStore } from './stores/character-store'
-import { useDamageStore } from './stores/damage-store'
 import { useSettingsStore } from './stores/settings-store'
-import type { HpMpResult, ExpResult, DamageEntry, MesoResult } from './types/ocr-result'
+import { useAnalysisStore } from './stores/analysis-store'
+import { addOcrHistory } from './lib/db'
+import type { HpMpResult, ExpResult /* , MesoResult */ } from './types/ocr-result'
 
 
 interface ToastMessage {
@@ -17,63 +15,18 @@ interface ToastMessage {
 
 let toastId = 0
 
-/** 應用程式根元件，檢查首次設定狀態後決定顯示設定精靈或主 HUD */
+/** 應用程式根元件：直接進入主 HUD 控制台 */
 const App: React.FC = () => {
-  const [setupCompleted, setSetupCompleted] = useState<boolean | null>(null)
-
-  useEffect(() => {
-    window.electronAPI.isSetupCompleted().then(setSetupCompleted)
-  }, [])
-
-  if (setupCompleted === null) return null
-  if (!setupCompleted) {
-    return <SetupWizard onComplete={() => setSetupCompleted(true)} />
-  }
-  return <HudApp />
-}
-
-/** 主 HUD 元件，註冊 OCR 結果監聽器並管理擷取狀態與通知 */
-const HudApp: React.FC = () => {
-  const setHp = useCharacterStore((s) => s.setHp)
-  const setMp = useCharacterStore((s) => s.setMp)
   const setExp = useCharacterStore((s) => s.setExp)
-  const setMeso = useCharacterStore((s) => s.setMeso)
-  const addDamageEntries = useDamageStore((s) => s.addDamageEntries)
-  const setLocked = useSettingsStore((s) => s.setLocked)
-  const isSettingsOpen = useSettingsStore((s) => s.isSettingsOpen)
-  const isRegionSelectorOpen = useSettingsStore((s) => s.isRegionSelectorOpen)
+  // const setMeso = useCharacterStore((s) => s.setMeso)
   const isCaptureRunning = useSettingsStore((s) => s.isCaptureRunning)
-  const theme = useSettingsStore((s) => s.theme)
-  const accessibility = useSettingsStore((s) => s.accessibility)
-  const locale = useSettingsStore((s) => s.locale)
-
-  // Sync theme to DOM — single source of truth
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme
-  }, [theme])
-
-  useEffect(() => {
-    document.documentElement.style.setProperty('--ui-font-scale', String(accessibility.fontScale))
-    document.documentElement.classList.toggle('high-contrast', accessibility.highContrast)
-  }, [accessibility.fontScale, accessibility.highContrast])
-
-  useEffect(() => {
-    document.documentElement.lang = locale === 'en' ? 'en' : 'zh-Hant'
-  }, [locale])
-
-  // Disable passthrough when modal/selector is open; restore only if mouse not on HUD
-  useEffect(() => {
-    if (isSettingsOpen || isRegionSelectorOpen) {
-      window.electronAPI?.setMousePassthrough(false)
-    } else if (!isHudHovered) {
-      window.electronAPI?.setMousePassthrough(true)
-    }
-  }, [isSettingsOpen, isRegionSelectorOpen])
+  const addOcrRecord = useAnalysisStore((s) => s.addOcrRecord)
+  const markExpSample = useAnalysisStore((s) => s.markExpSample)
 
   const [toasts, setToasts] = useState<ToastMessage[]>([])
   const toastTimers = useRef(new Set<ReturnType<typeof setTimeout>>())
+  const weakWarnAtRef = useRef<Record<string, number>>({})
 
-  // Cleanup all toast timers on unmount
   useEffect(() => () => {
     for (const t of toastTimers.current) clearTimeout(t)
   }, [])
@@ -110,32 +63,94 @@ const HudApp: React.FC = () => {
 
     cleanups.push(api.onOcrResult('hp', (data) => {
       const result = data as { data: HpMpResult }
-      if (result.data) setHp(result.data.current, result.data.max)
+      if (result.data) {
+        const payload = data as { confidence?: number; timestamp?: number }
+        const at = payload.timestamp || Date.now()
+        const conf = typeof payload.confidence === 'number' ? payload.confidence : 0
+        addOcrRecord({
+          regionId: 'hp',
+          timestamp: at,
+          confidence: conf,
+          valueText: `${result.data.current}/${result.data.max}`
+        })
+        void addOcrHistory({
+          regionId: 'hp',
+          timestamp: at,
+          confidence: conf,
+          value: result.data.current
+        }).catch(() => {})
+      }
     }))
 
     cleanups.push(api.onOcrResult('mp', (data) => {
       const result = data as { data: HpMpResult }
-      if (result.data) setMp(result.data.current, result.data.max)
+      if (result.data) {
+        const payload = data as { confidence?: number; timestamp?: number }
+        const at = payload.timestamp || Date.now()
+        const conf = typeof payload.confidence === 'number' ? payload.confidence : 0
+        addOcrRecord({
+          regionId: 'mp',
+          timestamp: at,
+          confidence: conf,
+          valueText: `${result.data.current}/${result.data.max}`
+        })
+        void addOcrHistory({
+          regionId: 'mp',
+          timestamp: at,
+          confidence: conf,
+          value: result.data.current
+        }).catch(() => {})
+      }
     }))
 
     cleanups.push(api.onOcrResult('exp', (data) => {
       const result = data as { data: ExpResult }
-      if (result.data) setExp(result.data.percent)
+      if (result.data) {
+        setExp(result.data.percent, result.data.rawValue)
+        const payload = data as { confidence?: number; timestamp?: number }
+        const at = payload.timestamp || Date.now()
+        const conf = typeof payload.confidence === 'number' ? payload.confidence : 0
+        markExpSample(result.data.percent, at)
+        const expValueText = typeof result.data.rawValue === 'number'
+          ? `${result.data.percent.toFixed(2)}% (${result.data.rawValue.toLocaleString()})`
+          : `${result.data.percent.toFixed(2)}%`
+        addOcrRecord({
+          regionId: 'exp',
+          timestamp: at,
+          confidence: conf,
+          valueText: expValueText
+        })
+        void addOcrHistory({
+          regionId: 'exp',
+          timestamp: at,
+          confidence: conf,
+          value: result.data.percent
+        }).catch(() => {})
+      }
     }))
 
-    cleanups.push(api.onOcrResult('damage', (data) => {
-      const result = data as { data: DamageEntry[] }
-      if (result.data && result.data.length > 0) addDamageEntries(result.data)
-    }))
-
-    cleanups.push(api.onOcrResult('meso', (data) => {
-      const result = data as { data: MesoResult }
-      if (result.data) setMeso(result.data.amount)
-    }))
-
-    cleanups.push(api.onModeChanged((mode) => {
-      setLocked(mode === 'locked')
-    }))
+    // [meso disabled] cleanups.push(api.onOcrResult('meso', ...))
+    // cleanups.push(api.onOcrResult('meso', (data) => {
+    //   const result = data as { data: MesoResult }
+    //   if (result.data) {
+    //     setMeso(result.data.amount)
+    //     const payload = data as { confidence?: number; timestamp?: number }
+    //     const at = payload.timestamp || Date.now()
+    //     const conf = typeof payload.confidence === 'number' ? payload.confidence : 0
+    //     addOcrRecord({
+    //       regionId: 'meso',
+    //       timestamp: at,
+    //       confidence: conf,
+    //       valueText: result.data.amount.toLocaleString()
+    //     })
+    //     void addOcrHistory({
+    //       regionId: 'meso',
+    //       timestamp: at,
+    //       confidence: conf,
+    //       value: result.data.amount
+    //     }).catch(() => {})
+    //   }
+    // }))
 
     cleanups.push(api.onCaptureAutoPaused(() => {
       useSettingsStore.getState().setCaptureRunning(false)
@@ -153,19 +168,20 @@ const HudApp: React.FC = () => {
       addToast('success', running ? '擷取已啟動 (F7)' : '擷取已暫停 (F7)')
     }))
 
-    cleanups.push(api.onStatsReset(() => {
-      useCharacterStore.getState().resetExpHistory()
-      useDamageStore.getState().resetSession()
-      addToast('success', '統計已重置 (F8)')
-    }))
-
-    cleanups.push(api.onScreenshotTaken((filePath) => {
-      const filename = filePath.split(/[/\\]/).pop() || filePath
-      addToast('success', `截圖：${filename}`)
-    }))
-
-    cleanups.push(api.onOpacityChanged((opacity) => {
-      useSettingsStore.getState().setOverlayOpacity(opacity)
+    cleanups.push(api.onCaptureOcrWeak(({ regionId }) => {
+      const now = Date.now()
+      const last = weakWarnAtRef.current[regionId] ?? 0
+      if (now - last < 15000) return
+      weakWarnAtRef.current[regionId] = now
+      const labelMap: Record<string, string> = {
+        hp: 'HP',
+        mp: 'MP',
+        exp: 'EXP',
+        // meso: '楓幣',
+        // mapName: '地圖'
+      }
+      const label = labelMap[regionId] || regionId
+      addToast('warning', `${label} OCR 連續讀不到，請重選視窗或校準區域`)
     }))
 
     api.getSettings().then((settings) => {
@@ -177,15 +193,9 @@ const HudApp: React.FC = () => {
     })
 
     return () => { cleanups.forEach((c) => c()) }
-  }, [setHp, setMp, setExp, setMeso, addDamageEntries, setLocked, addToast, clearWarnings])
+  }, [setExp, /* setMeso, */ addToast, clearWarnings, addOcrRecord, markExpSample])
 
-  return (
-    <div style={{ width: '100vw', height: '100vh', position: 'relative' }}>
-      <HudPanel toasts={toasts} onDismissToast={dismissToast} />
-      {isSettingsOpen && <SettingsModal />}
-      {isRegionSelectorOpen && <RegionSelector />}
-    </div>
-  )
+  return <HudPanel toasts={toasts} onDismissToast={dismissToast} />
 }
 
 export default App

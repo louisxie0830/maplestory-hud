@@ -3,6 +3,50 @@ export interface HpMpResult {
   max: number
 }
 
+function toInt(value: string): number {
+  return parseInt(value.replace(/[^\d]/g, ''), 10)
+}
+
+function normalizePair(currentRaw: string, maxRaw: string): HpMpResult | null {
+  const max = toInt(maxRaw)
+  if (isNaN(max) || max <= 0) return null
+
+  const currentParsed = toInt(currentRaw)
+  if (!isNaN(currentParsed) && currentParsed >= 0 && currentParsed <= max) {
+    return { current: currentParsed, max }
+  }
+
+  // OCR often adds an extra leading digit (e.g. 110482/10546 => 10482/10546).
+  const currentDigits = currentRaw.replace(/[^\d]/g, '')
+  const maxDigits = maxRaw.replace(/[^\d]/g, '')
+  if (currentDigits.length <= maxDigits.length) return null
+  const maxCut = currentDigits.length - maxDigits.length
+  for (let cut = 1; cut <= maxCut; cut += 1) {
+    if (currentDigits.length - cut < 1) break
+    const repaired = parseInt(currentDigits.slice(cut), 10)
+    if (!isNaN(repaired) && repaired >= 0 && repaired <= max) {
+      return { current: repaired, max }
+    }
+  }
+
+  return null
+}
+
+function collectPairs(text: string): HpMpResult[] {
+  const cleaned = text.replace(/[,，]/g, '').replace(/\s+/g, ' ')
+  const pairs: HpMpResult[] = []
+  const regex = /(\d{1,10})\s*\/\s*(\d{1,10})/g
+  let m: RegExpExecArray | null = regex.exec(cleaned)
+  while (m) {
+    const normalized = normalizePair(m[1], m[2])
+    if (normalized) {
+      pairs.push(normalized)
+    }
+    m = regex.exec(cleaned)
+  }
+  return pairs
+}
+
 /**
  * 從 OCR 文字中解析 HP 或 MP 數值
  * 支援格式："12345/67890"、"12,345 / 67,890"、"12345 / 67890"
@@ -10,30 +54,24 @@ export interface HpMpResult {
  * @returns 解析結果（包含目前值與最大值），或 null
  */
 export function parseHpMp(text: string): HpMpResult | null {
-  // Remove spaces around slash, normalize commas
-  const cleaned = text.replace(/\s+/g, ' ').replace(/,/g, '')
-
-  // Match pattern: number / number
-  const match = cleaned.match(/(\d+)\s*\/\s*(\d+)/)
-  if (!match) return null
-
-  const current = parseInt(match[1], 10)
-  const max = parseInt(match[2], 10)
-
-  // Validate
-  if (isNaN(current) || isNaN(max)) return null
-  if (max <= 0) return null
-  if (current < 0 || current > max) return null
-
-  return { current, max }
+  const pairs = collectPairs(text)
+  return pairs[0] ?? null
 }
 
 /**
- * 驗證 HP/MP 數值在兩次讀取之間是否變化過大
- * @param newValue - 新讀取的數值
- * @param lastValue - 上一次讀取的數值
- * @param maxDeltaPercent - 最大允許變化比例（預設 0.5）
- * @returns 若變化在合理範圍內回傳 true
+ * 依區域挑選 HP/MP 解析結果：
+ * - hp 優先取第一組 a/b
+ * - mp 優先取第二組 a/b（若同列混到 HP+MP）
+ */
+export function parseHpMpByRegion(text: string, regionId: 'hp' | 'mp'): HpMpResult | null {
+  const pairs = collectPairs(text)
+  if (pairs.length === 0) return null
+  if (regionId === 'hp') return pairs[0]
+  return pairs[1] ?? pairs[0]
+}
+
+/**
+ * 驗證 HP/MP 上限在兩次讀取間是否合理（避免 OCR 跳值）
  */
 export function validateDelta(
   newValue: HpMpResult,
@@ -41,12 +79,9 @@ export function validateDelta(
   maxDeltaPercent = 0.5
 ): boolean {
   if (!lastValue) return true
-
-  // Max value shouldn't change (unless equip change)
   if (lastValue.max > 0) {
     const maxDelta = Math.abs(newValue.max - lastValue.max) / lastValue.max
     if (maxDelta > maxDeltaPercent) return false
   }
-
   return true
 }
