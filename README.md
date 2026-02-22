@@ -4,6 +4,16 @@ MapleStory HUD 是一個以 Electron + React + TypeScript 開發的桌面覆蓋�
 
 ## 版本更新
 
+### v0.1.17
+
+- 設定視窗互動改善：
+  - 設定視窗支援拖曳（拖曳標題列即可移動位置）。
+- CPU 優化（Windows 體感改善）：
+  - OCR 長時間無有效結果時，擷取排程自動降頻（backoff），有結果再恢復頻率。
+  - 對 `damage` 區域採更積極降頻策略，降低高負載場景 CPU 使用率。
+- CI/CD 修正：
+  - 修正 mac workflow 中 `electron-builder: command not found`，改為走 `npm run -s build:mac`。
+
 ### v0.1.16
 
 - 設定頁可用性修正（針對「畫面被蓋住不好設定」）：

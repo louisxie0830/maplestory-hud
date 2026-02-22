@@ -6,6 +6,7 @@ import { OcrCalibrationTab } from './OcrCalibrationTab'
 import { AboutTab } from './AboutTab'
 import { AdvancedTab } from './AdvancedTab'
 import { t } from '../../lib/i18n'
+import { useDraggable } from '../../hooks/useDraggable'
 
 type Tab = 'general' | 'capture' | 'calibration' | 'advanced' | 'about'
 
@@ -23,11 +24,15 @@ export const SettingsModal: React.FC = () => {
   const settingsTab = useSettingsStore((s) => s.settingsTab)
   const setSettingsTab = useSettingsStore((s) => s.setSettingsTab)
   const locale = useSettingsStore((s) => s.locale)
+  const { position, handleMouseDown } = useDraggable({
+    initialPosition: { x: 12, y: 12 },
+    enabled: true
+  })
 
   return (
     <div className="settings-overlay" onClick={closeSettings}>
-      <div className="settings-modal" onClick={(e) => e.stopPropagation()}>
-        <div className="settings-header">
+      <div className="settings-modal" style={{ left: position.x, top: position.y }} onClick={(e) => e.stopPropagation()}>
+        <div className="settings-header settings-drag-handle" onMouseDown={handleMouseDown}>
           <span>{t(locale, 'settings')}</span>
           <button className="settings-close-btn" onClick={closeSettings}>
             &#10005;

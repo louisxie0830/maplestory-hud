@@ -853,13 +853,13 @@ input, textarea, select { user-select: text; }
 /* ========== Settings Modal ========== */
 .settings-overlay {
   position: fixed; inset: 0;
-  display: flex; align-items: flex-start; justify-content: flex-start;
-  padding: 10px;
+  display: block;
   z-index: 10000;
   background: rgba(5, 10, 22, 0.22);
 }
 
 .settings-modal {
+  position: fixed;
   width: min(760px, calc(100vw - 20px));
   max-height: calc(100vh - 20px);
   background: var(--bg-modal);
@@ -868,6 +868,10 @@ input, textarea, select { user-select: text; }
   box-shadow: var(--shadow);
   overflow: hidden;
   display: flex; flex-direction: column;
+}
+
+.settings-drag-handle {
+  cursor: move;
 }
 
 .settings-header {

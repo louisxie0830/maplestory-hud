@@ -13,6 +13,7 @@ interface CaptureJob {
   enabled: boolean
   processing: boolean
   lastRun: number
+  emptyStreak: number
 }
 
 const jobs = new Map<string, CaptureJob>()
@@ -49,7 +50,7 @@ function scheduleTick(): void {
   let minDelay = Infinity
   for (const job of jobs.values()) {
     if (!job.enabled || job.processing) continue
-    const due = Math.max(0, job.interval - (now - job.lastRun))
+    const due = Math.max(0, getEffectiveInterval(job) - (now - job.lastRun))
     if (due < minDelay) minDelay = due
   }
   if (minDelay === Infinity) return
@@ -61,7 +62,7 @@ function scheduleTick(): void {
     const now = Date.now()
     for (const job of jobs.values()) {
       if (!job.enabled || job.processing) continue
-      if (now - job.lastRun < job.interval) continue
+      if (now - job.lastRun < getEffectiveInterval(job)) continue
       job.lastRun = now
       job.processing = true
       processJob(job).finally(() => {
@@ -88,6 +89,7 @@ async function processJob(job: CaptureJob): Promise<void> {
     const result = await captureRegion(job.region)
 
     if (!result || !result.gameWindowFound) {
+      job.emptyStreak = Math.min(job.emptyStreak + 1, 100)
       const now = Date.now()
       if (now - lastMissTimestamp > MISS_DEDUP_MS) {
         lastMissTimestamp = now
@@ -103,6 +105,7 @@ async function processJob(job: CaptureJob): Promise<void> {
 
     const ocrResult = await runOcrPipeline(job.id, result.buffer)
     if (ocrResult) {
+      job.emptyStreak = 0
       recordOcrAttempt(job.id, true, Date.now() - startedAt, ocrResult.confidence)
       try {
         overlayWindow?.webContents.send(`ocr:${job.id}`, ocrResult)
@@ -110,9 +113,11 @@ async function processJob(job: CaptureJob): Promise<void> {
         // Window may be destroyed during shutdown
       }
     } else {
+      job.emptyStreak = Math.min(job.emptyStreak + 1, 100)
       recordOcrAttempt(job.id, false, Date.now() - startedAt)
     }
   } catch (error) {
+    job.emptyStreak = Math.min(job.emptyStreak + 1, 100)
     recordOcrAttempt(job.id, false, Date.now() - startedAt)
     log.error(`Capture job ${job.id} failed:`, error)
   }
@@ -137,12 +142,24 @@ export function addCaptureJob(
     interval: applyPerformanceInterval(interval),
     enabled: running,
     processing: false,
-    lastRun: 0
+    lastRun: 0,
+    emptyStreak: 0
   }
 
   jobs.set(id, job)
   scheduleTick()
   log.info(`Capture job added: ${id} (interval: ${job.interval}ms)`)
+}
+
+function getEffectiveInterval(job: CaptureJob): number {
+  if (job.emptyStreak < 6) return job.interval
+  if (job.id === 'damage') {
+    // Damage OCR is the hottest path: back off aggressively when long-empty.
+    if (job.emptyStreak >= 20) return Math.min(job.interval * 5, 5000)
+    return Math.min(job.interval * 3, 3000)
+  }
+  if (job.emptyStreak >= 20) return Math.min(job.interval * 4, 6000)
+  return Math.min(job.interval * 2, 3000)
 }
 
 function applyPerformanceInterval(baseInterval: number): number {
